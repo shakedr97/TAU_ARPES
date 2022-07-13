@@ -2,10 +2,13 @@ from ctypes import *
 import os
 import sys
 try:
+    from ARPES_Standa.ximc.pyximc import get_position_t
     from ARPES_Standa.ximc.pyximc import MicrostepMode
 except Exception as e:
     print(e)
-
+# 157.3667 mm -> 6280258
+# smaller number - longer optical path
+# 150.0000 mm -> 6000000
 
 cur_dir = os.path.abspath(os.path.dirname(__file__))
 dll_path = os.path.join(cur_dir, 'ximc', 'dlls')
@@ -21,6 +24,14 @@ class Standa:
         self.lib = lib
 
     def find_device() -> bytearray:
+        # Set bindy (network) keyfile. Must be called before any call to "enumerate_devices" or "open_device" if you
+        # wish to use network-attached controllers. Accepts both absolute and relative paths, relative paths are resolved
+        # relative to the process working directory. If you do not need network devices then "set_bindy_key" is optional.
+        # In Python make sure to pass byte-array object to this function (b"string literal").
+        result = lib.set_bindy_key(os.path.join(cur_dir, "keyfile.sqlite").encode("utf-8"))
+        if result != Result.Ok:
+            lib.set_bindy_key("keyfile.sqlite".encode("utf-8")) # Search for the key file in the current directory.
+
         probe_flags = EnumerateFlags.ENUMERATE_PROBE + EnumerateFlags.ENUMERATE_NETWORK
         enum_hints = b"addr="
         devenum = Standa._lib.enumerate_devices(probe_flags, enum_hints)
@@ -45,7 +56,7 @@ class StandaStage(Standa):
     # TODO: init location? restart?
     step_size = 1 # convert distance to time
     microstep_size = 1
-    refresh_interval_ms = 5 # TODO: is it ok?
+    refresh_interval_ms = 100 # TODO: is it ok?
 
     def __init__(self, device_id: bytes):
         Standa.__init__(self)
@@ -71,22 +82,28 @@ class StandaStage(Standa):
             print("\tStatus.Iusb: " + repr(status.Iusb))
             print("\tStatus.Flags: " + repr(hex(status.Flags)))
     
-    def set_left(self):
+    def go_left(self):
         res = self.lib.command_left(self._device_id)
-        print(f'\tset_left result: {repr(res)}')
+        print(f'\tgo_left result: {repr(res)}')
     
-    def set_right(self):
+    def go_right(self):
         res = self.lib.command_right(self._device_id)
-        print(f'\tset_right success {repr(res)}')
+        print(f'\tgo_right success {repr(res)}')
+    
+    def stop(self):
+        res = self.lib.command_stop(self._device_id)
+        print(f'\tstop result: {repr(res)}')
     
     def wait_to_stop(self):
         self.lib.command_wait_for_stop(self._device_id, StandaStage.refresh_interval_ms)
     
     def move(self, dt: int):
+        # TODO: micropos is irrelevant, only pos
+        # left - makes optic path longer, right - makes path shorter
         if dt < 0: # TODO: is right or left associated with a positive time difference
-            self.set_left()
+            self.go_left()
         if dt > 0:
-            self.set_right()
+            self.go_right()
         steps = self.dt_to_steps(dt)
         self.lib.command_move(self._device_id, steps.step, steps.microstep)
         print('\tmoving')
@@ -98,10 +115,13 @@ class StandaStage(Standa):
         microstep = StandaStage.microstep_size / (2 ** self.microstep_settings)
         steps = dt // self.step_size
         print(f'\tsteps: {steps}')
-        microsteps = (dt % self.step_size) // microstep
+        microsteps = 0 # (dt % self.step_size) // microstep
         print(f'\tmicrosteps: {microsteps}')
         return EngineStep(steps, microsteps)
     
+    def basic_move(self, pos, micropos):
+        self.lib.command_move(self._device_id, pos, micropos)
+
     def dispose(self):
         self.lib.close_device(byref(cast(self._device_id, POINTER(c_int))))
         print("\tDone")
@@ -113,6 +133,13 @@ class StandaStage(Standa):
         mvst.Speed = speed
         result = self.lib.set_move_settings(device_id, byref(mvst))
         print(f'\tset_speed result: {rerpr(result)}')
+    
+    def get_pos(self):
+        pos = get_position_t()
+        res = self.lib.get_position(self._device_id, byref(pos))
+        if res == Result.Ok:
+            print(f'pos - {pos.Position} micropos - {pos.uPosition}')
+    
 
     
 
@@ -123,12 +150,12 @@ lib.ximc_version(sbuf)
 print(f'stage libary version - {sbuf.raw.decode()}')
 print('network controllers not setup here')
 
-device_id = 1
-# device_id = Standa.find_device()
-stage = StandaStage(device_id)
-stage.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_256)
-stage.get_status()
-stage.dispose()
+# device_id = 1
+device_id = Standa.find_device()
+device = StandaStage(device_id)
+# stage.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_256)
+device.get_status()
+# stage.dispose()
 try:
     while sys.argv[1]:
         order = input('enter order: (find_device, get_status, set_microstep_{256, 128, 2}, set_{left, right}, move, set_speed, close_device, exit)\n')
@@ -145,17 +172,25 @@ try:
             case 'set_microstep_2':
                 device.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_2)
             case 'set_right':
-                device.set_right()
+                device.go_right()
             case 'set_left':
-                device.set_right()
+                device.go_left()
             case 'move':
                 dt = float(input('enter time difference:\n'))
-                stage.move(dt)
+                device.move(dt)
             case 'set_speed':
                 speed = float(input('enter speed:\n'))
                 device.set_speed(speed)
             case 'close_device':
                 device.dispose()
+            case 'stop':
+                device.stop()
+            case 'move_to':
+                pos = int(input('enter pos'))
+                micropos = int(input('enter micropos'))
+                device.basic_move(pos, micropos)
+            case 'get_pos':
+                device.get_pos()
             case 'exit':
                 exit()
 except Exception as e:
