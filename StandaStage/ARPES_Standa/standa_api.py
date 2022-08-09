@@ -1,7 +1,7 @@
 from ctypes import *
 import os
 import sys
-import stage_config
+import sweep_config
 import time
 try:
     from ARPES_Standa.ximc.pyximc import get_position_t
@@ -139,11 +139,11 @@ if __name__ == '__main__':
     print(f'stage libary version - {sbuf.raw.decode()}')
     print('network controllers not setup here')
     if sys.argv[1] == 'sweep':
-        dwell_time_s = stage_config.dwell_time_s
-        delta_t_fs = stage_config.delta_t_fs
-        start_time_fs = stage_config.start_time_fs
-        stop_time_fs = stage_config.stop_time_fs
-        zero_pos = stage_config.zero_pos
+        dwell_time_s = sweep_config.dwell_time_s
+        delta_t_fs = sweep_config.delta_t_fs
+        start_time_fs = sweep_config.start_time_fs
+        stop_time_fs = sweep_config.stop_time_fs
+        zero_pos = sweep_config.zero_pos
 
         print(f'sweeping: dwell time - ({dwell_time_s})[s], time step size - ({delta_t_fs})[fs], start time - ({start_time_fs})[fs], stop time - ({stop_time_fs})[fs]')
             
