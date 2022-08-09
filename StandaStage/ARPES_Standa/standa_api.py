@@ -6,9 +6,8 @@ try:
     from ARPES_Standa.ximc.pyximc import MicrostepMode
 except Exception as e:
     print(e)
-# 157.3667 mm -> 6280258
-# smaller number - longer optical path
-# 150.0000 mm -> 6000000
+
+c = 299.792458 # mm / ns
 
 cur_dir = os.path.abspath(os.path.dirname(__file__))
 dll_path = os.path.join(cur_dir, 'ximc', 'dlls')
@@ -54,6 +53,11 @@ class EngineStep:
 class StandaStage(Standa):
     # TODO: what to do with results -1? most likely better not to ignore it
     # TODO: init location? restart?
+    # 157.3667 mm -> 6280258
+    # smaller number - longer optical path
+    # 150.0000 mm -> 6000000
+    stage_pos_in_mm = 38044
+    stage_pos_in_fs = - 2 * c * stage_pos_in_mm / 1e6
     step_size = 1 # convert distance to time
     microstep_size = 1
     refresh_interval_ms = 100 # TODO: is it ok?
@@ -62,6 +66,7 @@ class StandaStage(Standa):
         Standa.__init__(self)
         self._device_id = device_id
         self.microstep_settings = MicrostepMode.MICROSTEP_MODE_FULL
+        self.zero_pos : int = 1500000
         # TODO: maybe set speed?
     
     def set_microstep(self, setting):
@@ -71,6 +76,20 @@ class StandaStage(Standa):
         res = self.lib.set_engine_settings(self._device_id, byref(eng))
         self.microstep_settings = setting
         print(f'\tset engine settings {repr(setting)} result: {repr(res)}') # TODO: pretty display for engine settings
+    
+    def set_zero_pos(self, pos : int):
+        self.zero_pos = pos
+    
+    def set_current_pos_zero_pos(self):
+        self.zero_pos = self.get_pos()
+    
+    def go_to_time_fs(self, time_fs: int):
+        new_pos = self.zero_pos + self.stage_pos_in_fs * time_fs
+        self.move_to(round(new_pos))
+    
+    def move_time_step(self, step_fs: int):
+        new_pos = self.get_pos() + self.stage_pos_in_fs * step_fs
+        self.move_to(round(new_pos))
     
     def get_status(self):
         status = status_t()
@@ -119,8 +138,8 @@ class StandaStage(Standa):
         print(f'\tmicrosteps: {microsteps}')
         return EngineStep(steps, microsteps)
     
-    def basic_move(self, pos, micropos):
-        self.lib.command_move(self._device_id, pos, micropos)
+    def move_to(self, pos: int):
+        self.lib.command_move(self._device_id, pos, 0)
 
     def dispose(self):
         self.lib.close_device(byref(cast(self._device_id, POINTER(c_int))))
@@ -134,11 +153,12 @@ class StandaStage(Standa):
         result = self.lib.set_move_settings(device_id, byref(mvst))
         print(f'\tset_speed result: {rerpr(result)}')
     
-    def get_pos(self):
+    def get_pos(self) -> int:
         pos = get_position_t()
         res = self.lib.get_position(self._device_id, byref(pos))
         if res == Result.Ok:
             print(f'pos - {pos.Position} micropos - {pos.uPosition}')
+        return pos.Position
     
 
     
@@ -187,8 +207,7 @@ try:
                 device.stop()
             case 'move_to':
                 pos = int(input('enter pos'))
-                micropos = int(input('enter micropos'))
-                device.basic_move(pos, micropos)
+                device.move_to(pos)
             case 'get_pos':
                 device.get_pos()
             case 'exit':
@@ -196,3 +215,9 @@ try:
 except Exception as e:
     print(e)
     print('done')
+
+
+
+
+
+### Garbage dump
