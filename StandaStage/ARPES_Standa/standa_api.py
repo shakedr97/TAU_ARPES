@@ -1,6 +1,7 @@
 from ctypes import *
 import os
 import sys
+import stage_config
 try:
     from ARPES_Standa.ximc.pyximc import get_position_t
     from ARPES_Standa.ximc.pyximc import MicrostepMode
@@ -130,58 +131,61 @@ class StandaStage(Standa):
 
     
 
+if __name__ == '__main__':
+    # sanity
+    sbuf = create_string_buffer(64)
+    lib.ximc_version(sbuf)
+    print(f'stage libary version - {sbuf.raw.decode()}')
+    print('network controllers not setup here')
+    if sys.argv[1] == 'sweep':
+        dwell_time_s = stage_config.dwell_time_s
+        delta_t_fs = stage_config.delta_t_fs
+        start_time_fs = stage_config.start_time_fs
+        stop_time_fs = stage_config.stop_time_fs
+        zero_pos = stage_config.zero_pos
 
-# sanity
-sbuf = create_string_buffer(64)
-lib.ximc_version(sbuf)
-print(f'stage libary version - {sbuf.raw.decode()}')
-print('network controllers not setup here')
-
-# device_id = 1
-device_id = Standa.find_device()
-device = StandaStage(device_id)
-# stage.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_256)
-device.get_status()
-# stage.dispose()
-try:
-    while sys.argv[1]:
-        order = input('enter order: (find_device, get_status, set_microstep_{256, 128, 2}, set_{left, right}, move, set_speed, close_device, exit)\n')
-        match order:
-            case 'find_device':
-                device_id = Standa.find_device()
-                device = StandaStage(device_id)
-            case 'get_status':
-                device.get_status()
-            case 'set_microtep_256':
-                device.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_256)
-            case 'set_microstep_128':
-                device.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_128)
-            case 'set_microstep_2':
-                device.set_microstep(MicrostepMode.MICROSTEP_MODE_FRAC_2)
-            case 'set_right':
-                device.go_right()
-            case 'set_left':
-                device.go_left()
-            case 'move':
-                dt = float(input('enter time difference:\n'))
-                device.move(dt)
-            case 'set_speed':
-                speed = float(input('enter speed:\n'))
-                device.set_speed(speed)
-            case 'close_device':
-                device.dispose()
-            case 'stop':
-                device.stop()
-            case 'move_to':
-                pos = int(input('enter pos'))
-                device.move_to(pos)
-            case 'get_pos':
-                device.get_pos()
-            case 'exit':
-                exit()
-except Exception as e:
-    print(e)
-    print('done')
+        print(f'sweeping: dwell time - ({dwell_time_s})[s], time step size - ({delta_t_fs})[fs], start time - ({start_time_fs})[fs], stop time - ({stop_time_fs})[fs]')
+            
+        device_id = Standa.find_device()
+        stage = StandaStage(device_id)
+        if zero_pos > 0:
+            stage.set_zero_pos(zero_pos)
+        for time in range(start_time_fs, stop_time_fs, delta_t_fs):
+            print(time)
+            stage.go_to_time_fs(time)
+            time.sleep(dwell_time_s)
+        
+    else:
+        try:
+            while sys.argv[1]:
+                order = input('enter order: (find_device, get_status, go_{left, right}, set_speed, close_device, stop, move_to, get_pos, exit)\n')
+                match order:
+                    case 'find_device':
+                        device_id = Standa.find_device()
+                        device = StandaStage(device_id)
+                    case 'get_status':
+                        device.get_status()
+                    case 'set_right':
+                        device.go_right()
+                    case 'set_left':
+                        device.go_left()
+                    case 'set_speed':
+                        speed = float(input('enter speed:\n'))
+                        device.set_speed(speed)
+                    case 'close_device':
+                        device.dispose()
+                    case 'stop':
+                        device.stop()
+                    case 'move_to':
+                        pos = int(input('enter pos'))
+                        device.move_to(pos)
+                    case 'get_pos':
+                        device.get_pos()
+                    case 'exit':
+                        exit()
+        except Exception as e:
+            print(e)
+            print('done')
 
 
 
