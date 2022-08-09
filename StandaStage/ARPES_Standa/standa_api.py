@@ -2,6 +2,7 @@ from ctypes import *
 import os
 import sys
 import stage_config
+import time
 try:
     from ARPES_Standa.ximc.pyximc import get_position_t
     from ARPES_Standa.ximc.pyximc import MicrostepMode
@@ -150,9 +151,10 @@ if __name__ == '__main__':
         stage = StandaStage(device_id)
         if zero_pos > 0:
             stage.set_zero_pos(zero_pos)
-        for time in range(start_time_fs, stop_time_fs, delta_t_fs):
-            print(time)
-            stage.go_to_time_fs(time)
+        for t in range(start_time_fs, stop_time_fs + delta_t_fs, delta_t_fs):
+            print(t)
+            stage.go_to_time_fs(t)
+            stage.wait_to_stop()
             time.sleep(dwell_time_s)
         
     else:
