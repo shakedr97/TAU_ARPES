@@ -58,24 +58,13 @@ class StandaStage(Standa):
     # 150.0000 mm -> 6000000
     stage_pos_in_mm = 38044
     stage_pos_in_fs = - 2 * c * stage_pos_in_mm / 1e6
-    step_size = 1 # convert distance to time
-    microstep_size = 1
     refresh_interval_ms = 100 # TODO: is it ok?
 
     def __init__(self, device_id: bytes):
         Standa.__init__(self)
         self._device_id = device_id
-        self.microstep_settings = MicrostepMode.MICROSTEP_MODE_FULL
         self.zero_pos : int = 1500000
         # TODO: maybe set speed?
-    
-    def set_microstep(self, setting):
-        eng = engine_settings_t()
-        self.lib.get_engine_settings(self._device_id, byref(eng))
-        eng.MicrostepMode = setting
-        res = self.lib.set_engine_settings(self._device_id, byref(eng))
-        self.microstep_settings = setting
-        print(f'\tset engine settings {repr(setting)} result: {repr(res)}') # TODO: pretty display for engine settings
     
     def set_zero_pos(self, pos : int):
         self.zero_pos = pos
@@ -115,28 +104,6 @@ class StandaStage(Standa):
     
     def wait_to_stop(self):
         self.lib.command_wait_for_stop(self._device_id, StandaStage.refresh_interval_ms)
-    
-    def move(self, dt: int):
-        # TODO: micropos is irrelevant, only pos
-        # left - makes optic path longer, right - makes path shorter
-        if dt < 0: # TODO: is right or left associated with a positive time difference
-            self.go_left()
-        if dt > 0:
-            self.go_right()
-        steps = self.dt_to_steps(dt)
-        self.lib.command_move(self._device_id, steps.step, steps.microstep)
-        print('\tmoving')
-        self.wait_to_stop()
-        print('\tdone moving')
-        # TODO: print new position, and time
-        
-    def dt_to_steps(self, dt: int) -> EngineStep: # translate time difference to engine steps and microsteps
-        microstep = StandaStage.microstep_size / (2 ** self.microstep_settings)
-        steps = dt // self.step_size
-        print(f'\tsteps: {steps}')
-        microsteps = 0 # (dt % self.step_size) // microstep
-        print(f'\tmicrosteps: {microsteps}')
-        return EngineStep(steps, microsteps)
     
     def move_to(self, pos: int):
         self.lib.command_move(self._device_id, pos, 0)
