@@ -151,7 +151,7 @@ class StandaStage(Standa):
         print(f'The speed was equal to {mvst.Speed}. We will change it to {speed}')
         mvst.Speed = speed
         result = self.lib.set_move_settings(device_id, byref(mvst))
-        print(f'\tset_speed result: {rerpr(result)}')
+        print(f'\tset_speed result: {repr(result)}')
     
     def get_pos(self) -> int:
         pos = get_position_t()
