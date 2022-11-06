@@ -10,6 +10,8 @@ except Exception as e:
     print(e)
 
 c = 299.792458 # mm / ns
+# 13200 - 180 deg
+# -1200 - 0 deg
 
 cur_dir = os.path.abspath(os.path.dirname(__file__))
 dll_path = os.path.join(cur_dir, 'ximc', 'dlls')
