@@ -34,7 +34,7 @@ class DaqWindow(QMainWindow):
 
         # time points
         self.points = QHBoxLayout()
-        self.points_label = QLabel('points: [start_1, stop_1, step_1], [start_2, stop_2, step_2],...')
+        self.points_label = QLabel('points: [start_1, stop_1, step_1],...')
         self.points_input = QLineEdit()
         self.points.addWidget(self.points_label)
         self.points.addWidget(self.points_input)
