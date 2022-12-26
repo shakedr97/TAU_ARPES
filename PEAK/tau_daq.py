@@ -15,6 +15,7 @@ class SpectrumCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
+        self.axes.plot([0,1,2,3,4], [10,1,20,3,40])
         super(SpectrumCanvas, self).__init__(fig)
 
 class DaqWindow(QMainWindow):
@@ -86,12 +87,16 @@ class DaqWindow(QMainWindow):
         self.configuration.addLayout(self.dwell_time)
         self.configuration.addLayout(self.points)
         
+        # spectrum
+        self.spectrum = SpectrumCanvas()
+
         self.layout.setSpacing(1)
         self.layout.addWidget(self.connect_analyser)
         self.layout.addWidget(self.start_sweep)
         self.layout.addWidget(self.get_spectrum)
         self.layout.addWidget(self.test_spectrum)
         self.layout.addLayout(self.configuration)
+        self.layout.addWidget(self.spectrum)
 
         container = QWidget()
         container.setLayout(self.layout)
@@ -135,7 +140,10 @@ class DaqWindow(QMainWindow):
         spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
         spectrum = peak.PeakSpectrum()
         spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
-        spectrum.show(data_type=peak.PeakSpectrumType.Count)
+        # spectrum.show(data_type=peak.PeakSpectrumType.Count)
+        self.spectrum.axes.cla()
+        spectrum.show_plane(self.spectrum.axes)
+        self.spectrum.draw()
 
     
     def connect_to_analyser(self, checked):
