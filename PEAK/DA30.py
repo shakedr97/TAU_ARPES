@@ -1,5 +1,16 @@
 import peak
 
+class DA30:
+
+    def __init__(self):
+        self.manager = peak.ManagerClient(f'http://localhost:8080/api')
+        self.manager.connect()
+        self.manager_status = self.manager.get_state()
+        
+        analyser = peak.WebsocketPeakClient(self.manager.server_address('Analyser'))
+        analyser.connect()
+        self.analyser = peak.AnalyserMeasurementController(analyser)
+
 test = 'data'
 
 if __name__ == '__main__':
