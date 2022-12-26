@@ -1,5 +1,5 @@
 import DA30
-import peak
+from standa_api import StandaStage, Standa
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QMenu, QHBoxLayout
@@ -23,15 +23,24 @@ class DaqWindow(QMainWindow):
         self.setWindowTitle("TAU ARPES DAQ")
         self.setFixedSize(QSize(600, 600))
         
-        # connect to analyser buttton
-        self.connect_analyser = QPushButton("connect")
+        # connect to analyser button
+        self.connect_analyser = QPushButton("connect analyser")
         self.connect_analyser.setCheckable(True)
         self.connect_analyser.clicked.connect(self.connect_to_analyser)
         
+        # connect to stage button
+        self.connect_stage = QPushButton("connect stage")
+        self.connect_stage.setCheckable(True)
+        self.connect_stage.clicked.connect(self.connect_to_stage)
+
         # start sweep button
         self.start_sweep = QPushButton("start sweep")
         self.start_sweep.setCheckable(True)
         self.start_sweep.clicked.connect(self.do_sweep)
+
+        # get stage position button
+        self.stage_position = QPushButton("get stage position")
+        self.stage_position.clicked.connect(self.get_stage_position)
 
         # get specturm button
         self.get_spectrum = QPushButton("get spectrum")
@@ -79,6 +88,8 @@ class DaqWindow(QMainWindow):
 
         self.layout.setSpacing(1)
         self.layout.addWidget(self.connect_analyser)
+        self.layout.addWidget(self.connect_stage)
+        self.layout.addWidget(self.stage_position)
         self.layout.addWidget(self.start_sweep)
         self.layout.addWidget(self.get_spectrum)
         self.layout.addWidget(self.test_spectrum)
@@ -124,6 +135,16 @@ class DaqWindow(QMainWindow):
             except Exception as e:
                 checked = False
                 print(repr(e))
+    
+    def connect_to_stage(self):
+        try:
+            device_id = Standa.find_device()
+            self.stage = StandaStage(device_id)
+        except Exception as e:
+            print(repr(e))
+    
+    def get_stage_position(self):
+        print(self.stage.get_pos())
 
 
 if __name__ == '__main__':
