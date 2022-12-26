@@ -122,10 +122,11 @@ class DaqWindow(QMainWindow):
             print(e)
             return
         sweep = {}
+        self.analyser.start_measurement(KE, DT)
         for point in points:
             QApplication.processEvents()
             self.stage.go_to_time_fs(point)
-            spectrum = self.analyser.do_measurement(KE, DT)
+            spectrum = self.analyser.take_measurement()
             self.spectrum.axes.cla()
             spectrum.show_plane(self.spectrum.axes)
             self.spectrum.draw()
@@ -133,6 +134,7 @@ class DaqWindow(QMainWindow):
             self.sweep_canvas.axes.cla()
             self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
             self.sweep_canvas.draw()
+        self.analyser.stop_measurement()
 
 
         

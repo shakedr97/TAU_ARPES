@@ -10,6 +10,7 @@ class DA30:
         analyser = peak.WebsocketPeakClient(self.manager.server_address('Analyser'))
         analyser.connect()
         self.analyser = peak.AnalyserMeasurementController(analyser)
+        self._is_measuring = False
     
     def do_measurement(self, kinetic_energy=1.75, dwell_time=1.0):
         seq_loq_id = 'test'
@@ -36,6 +37,35 @@ class DA30:
         self.analyser.finish_spectrum(spectrum_id)
         self.analyser.finish_measurement()
         return spectrum
+    
+    def start_measurement(self, kinetic_energy=1.75, dwell_time=1.0):
+        seq_loq_id = 'test'
+        acq_log_id = 'test'
+        self.analyser.start_measurement(seq_loq_id, acq_log_id)
+
+        configuration_name = self.analyser.configuration_name
+        spectrum_definition = {
+                        'ElementSetName': configuration_name,
+                        'Name': 'DA30_Test',
+                        'LensModeName': 'DA30L_01',
+                        'PassEnergy': 10,
+                        'FixedAxes': {'X': {'Center': kinetic_energy}},
+                        'AcquisitionMode' : 'Image', 
+                        'DwellTime' : dwell_time,
+                        'StoreSpectrum': False,
+                        'StoreAcquisitionData': False,
+                        }    
+
+        self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
+        self.analyser.setup_spectrum(spectrum_id)
+        self._is_measuring = True
+    
+    def take_measurement(self):
+        return self.analyser.get_measured_spectrum(spectrum_id)
+
+    def stop_measurement(self):
+        self.analyser.finish_spectrum(self.spectrum_id)
+        self.analyser.finish_measurement()
 
 test = 'data'
 
