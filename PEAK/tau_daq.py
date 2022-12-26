@@ -15,7 +15,6 @@ class SpectrumCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
-        self.axes.plot([0,1,2,3,4], [10,1,20,3,40])
         super(SpectrumCanvas, self).__init__(fig)
 
 class DaqWindow(QMainWindow):
@@ -132,6 +131,9 @@ class DaqWindow(QMainWindow):
         self.analyser.acquire(spectrum_id)
 
         spectrum = self.analyser.get_measured_spectrum(spectrum_id)
+        self.spectrum.axes.cla()
+        spectrum.show_plane(self.spectrum.axes)
+        self.spectrum.draw()
         self.analyser.finish_measurement()
 
     def test_data(self):
