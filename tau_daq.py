@@ -1,4 +1,4 @@
-import PEAK.DA30
+import PEAK.DA30 as DA30
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QMenu, QHBoxLayout
@@ -13,30 +13,33 @@ from StandaStage.standa_api import StandaStage, Standa
 import sys
 
 class SpectrumCanvas(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(self, parent=None, width=4, height=3, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         super(SpectrumCanvas, self).__init__(fig)
+
+class SweepCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=4, height=3, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(SweepCanvas, self).__init__(fig)
 
 class DaqWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("TAU ARPES DAQ")
-        self.setFixedSize(QSize(600, 600))
+        self.setFixedSize(QSize(1000, 1000))
         
         # connect to analyser button
         self.connect_analyser = QPushButton("connect analyser")
-        self.connect_analyser.setCheckable(True)
         self.connect_analyser.clicked.connect(self.connect_to_analyser)
         
         # connect to stage button
         self.connect_stage = QPushButton("connect stage")
-        self.connect_stage.setCheckable(True)
         self.connect_stage.clicked.connect(self.connect_to_stage)
 
         # start sweep button
         self.start_sweep = QPushButton("start sweep")
-        self.start_sweep.setCheckable(True)
         self.start_sweep.clicked.connect(self.do_sweep)
 
         # get stage position button
@@ -45,13 +48,7 @@ class DaqWindow(QMainWindow):
 
         # get specturm button
         self.get_spectrum = QPushButton("get spectrum")
-        self.get_spectrum
         self.get_spectrum.clicked.connect(self.scan_spectrum)
-
-        # test data button
-        self.test_spectrum = QPushButton("test data")
-        self.test_spectrum
-        self.test_spectrum.clicked.connect(self.test_data)
 
         self.layout = QVBoxLayout()
         
@@ -84,29 +81,57 @@ class DaqWindow(QMainWindow):
         self.configuration.addLayout(self.dwell_time)
         self.configuration.addLayout(self.points)
         
+        # setting new t0
+        self.set_t_0 = QHBoxLayout()
+        self.new_t_0_label = QLabel('new t0 in fs')
+        self.new_t_0_input = QLineEdit()
+        self.set_new_t_0 = QPushButton('Ok')
+        self.set_new_t_0.clicked.connect(self.set_new_t_0_value)
+
+        self.set_t_0.addWidget(self.new_t_0_label)
+        self.set_t_0.addWidget(self.new_t_0_input)
+        self.set_t_0.addWidget(self.set_new_t_0)
+
+        
+        
         # spectrum
         self.spectrum = SpectrumCanvas()
 
-        self.layout.setSpacing(1)
+        # sweep
+        self.sweep = SweepCanvas()
+
         self.layout.addWidget(self.connect_analyser)
         self.layout.addWidget(self.connect_stage)
         self.layout.addWidget(self.stage_position)
+        self.layout.addLayout(self.set_t_0)
         self.layout.addWidget(self.start_sweep)
         self.layout.addWidget(self.get_spectrum)
-        self.layout.addWidget(self.test_spectrum)
         self.layout.addLayout(self.configuration)
         self.layout.addWidget(self.spectrum)
+        self.layout.addWidget(self.sweep)
 
         container = QWidget()
         container.setLayout(self.layout)
 
         self.setCentralWidget(container)
 
-    def do_sweep(self, checked):
-        print(f"sweeping: {checked}")
-        print(self.KE_input.text())
-        print(self.DT_input.text())
-        print(self.points_input.text())
+    def do_sweep(self):
+        if self.KE_input.text() != "" and self.DT_input != "":
+            print('enter kinetic energy and dwell time values before sweep')
+        try:
+            points = self.get_sweep_points(self.points_input.text())
+        finally:
+            print('sweep points enter in a non-valid manner')
+        for point in points:
+            self.stage.go_to_time_fs(point)
+        
+    def get_sweep_points(points_text):
+        points = []
+        for section in points_text.split(','):
+            [start, stop, step] = section.split('_')
+            print(f'{start} {stop} {step}')
+            points += [x for x in range(int(start), int(stop), int(step))]
+        return points
     
     def scan_spectrum(self):
         if self.KE_input.text() != "" and self.DT_input != "":
@@ -117,25 +142,13 @@ class DaqWindow(QMainWindow):
         self.spectrum.axes.cla()
         spectrum.show_plane(self.spectrum.axes)
         self.spectrum.draw()
-
-    def test_data(self):
-        print('testing data')
-    #     base_dir = "C:\\Users\\Scienta Omicron\\git\\TAU_ARPES\\Spectrum_1"
-    #     spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
-    #     spectrum = peak.PeakSpectrum()
-    #     spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
-    #     self.spectrum.axes.cla()
-    #     spectrum.show_plane(self.spectrum.axes)
-    #     self.spectrum.draw()
-
     
-    def connect_to_analyser(self, checked):
-        if checked:
-            try:
-                self.analyser = DA30.DA30()
-            except Exception as e:
-                checked = False
-                print(repr(e))
+    def connect_to_analyser(self):
+        try:
+            self.analyser = DA30.DA30()
+        except Exception as e:
+            checked = False
+            print(repr(e))
     
     def connect_to_stage(self):
         try:
@@ -147,6 +160,10 @@ class DaqWindow(QMainWindow):
     def get_stage_position(self):
         print(self.stage.get_pos())
 
+    def set_new_t_0_value(self):
+        t_0 = int(self.new_t_0_input.text())
+        self.stage.set_zero_pos_by_time(t_0)
+        self.new_t_0_input.clear()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

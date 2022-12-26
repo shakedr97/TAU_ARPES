@@ -78,6 +78,9 @@ class StandaStage(Standa):
     def set_zero_pos(self, pos : int):
         self.zero_pos = pos
     
+    def set_zero_pos_by_time(self, new_time: int):
+        self.zero_pos = self.zero_pos + self.stage_pos_in_fs * new_time
+    
     def set_current_pos_zero_pos(self):
         self.zero_pos = self.get_pos()
     
