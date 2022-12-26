@@ -63,7 +63,7 @@ if __name__ == '__main__':
         spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
         spectrum = peak.PeakSpectrum()
         spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
-        # spectrum.show(data_type=peak.PeakSpectrumType.Count)
+        spectrum.show(data_type=peak.PeakSpectrumType.Count)
         data = spectrum.count_data
         time_data = spectrum.time_data
         print(data.shape)
