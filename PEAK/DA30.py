@@ -11,7 +11,7 @@ class DA30:
         analyser.connect()
         self.analyser = peak.AnalyserMeasurementController(analyser)
     
-    def do_measurement(self):
+    def do_measurement(self, kinetic_energy=1.75, dwell_time=1.0):
         seq_loq_id = 'test'
         acq_log_id = 'test'
         self.analyser.start_measurement(seq_loq_id, acq_log_id)
@@ -20,11 +20,11 @@ class DA30:
         spectrum_definition = {
                         'ElementSetName': configuration_name,
                         'Name': 'DA30_Test',
-                        'LensModeName': 'DA30_01',
+                        'LensModeName': 'DA30L_01',
                         'PassEnergy': 10,
-                        'FixedAxes': {'X': {'Center': 0.0}, 'Z' : {'Center': 5.0}},
+                        'FixedAxes': {'X': {'Center': kinetic_energy}},
                         'AcquisitionMode' : 'Image', 
-                        'DwellTime' : 10.0,
+                        'DwellTime' : dwell_time,
                         'StoreSpectrum': False,
                         'StoreAcquisitionData': False,
                         }    

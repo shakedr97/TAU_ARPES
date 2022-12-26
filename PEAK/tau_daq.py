@@ -68,18 +68,6 @@ class DaqWindow(QMainWindow):
         self.points_input = QLineEdit()
         self.points.addWidget(self.points_label)
         self.points.addWidget(self.points_input)
-
-        spectrum_definition = {
-                    'ElementSetName': "configuration_name",
-                    'Name': 'DA30_Test',
-                    'LensModeName': 'DA30_01',
-                    'PassEnergy': 10,
-                    'FixedAxes': {'X': {'Center': 50.0}, 'Z' : {'Center': 5.0}},
-                    'AcquisitionMode' : 'Image', 
-                    'DwellTime' : 1.0, 
-                    'StoreSpectrum': False,
-                    'StoreAcquisitionData': False,
-                     }
         
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
@@ -109,21 +97,24 @@ class DaqWindow(QMainWindow):
         print(self.points_input.text())
     
     def scan_spectrum(self):
-        spectrum = self.analyser.do_measurement()
+        if self.KE_input.text() != "" and self.DT_input != "":
+            spectrum = self.analyser.do_measurement(float(self.KE_input.text()), float(self.DT_input.text()))
+        else:
+            print('did not receive kinetic energy input and dwelling time input, defaulting to 1.75eV and 1.0s')
+            spectrum = self.analyser.do_measurement()
         self.spectrum.axes.cla()
         spectrum.show_plane(self.spectrum.axes)
         self.spectrum.draw()
 
     def test_data(self):
         print('testing data')
-        base_dir = "C:\\Users\\Scienta Omicron\\git\\TAU_ARPES\\Spectrum_1"
-        spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
-        spectrum = peak.PeakSpectrum()
-        spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
-        # spectrum.show(data_type=peak.PeakSpectrumType.Count)
-        self.spectrum.axes.cla()
-        spectrum.show_plane(self.spectrum.axes)
-        self.spectrum.draw()
+    #     base_dir = "C:\\Users\\Scienta Omicron\\git\\TAU_ARPES\\Spectrum_1"
+    #     spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
+    #     spectrum = peak.PeakSpectrum()
+    #     spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
+    #     self.spectrum.axes.cla()
+    #     spectrum.show_plane(self.spectrum.axes)
+    #     self.spectrum.draw()
 
     
     def connect_to_analyser(self, checked):
