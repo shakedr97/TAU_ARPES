@@ -109,36 +109,14 @@ class DaqWindow(QMainWindow):
         print(self.points_input.text())
     
     def scan_spectrum(self):
-        seq_loq_id = 'test'
-        acq_log_id = 'test'
-        self.analyser.start_measurement(seq_loq_id, acq_log_id)
-
-        configuration_name = self.analyser.configuration_name
-        spectrum_definition = {
-                        'ElementSetName': configuration_name,
-                        'Name': 'DA30_Test',
-                        'LensModeName': 'DA30_01',
-                        'PassEnergy': 10,
-                        'FixedAxes': {'X': {'Center': 50.0}, 'Z' : {'Center': 5.0}},
-                        'AcquisitionMode' : 'Image', 
-                        'DwellTime' : 1.0, 
-                        'StoreSpectrum': False,
-                        'StoreAcquisitionData': False,
-                        }    
-
-        spectrum_id = self.analyser.define_spectrum(spectrum_definition)
-        self.analyser.setup_spectrum(spectrum_id)
-        self.analyser.acquire(spectrum_id)
-
-        spectrum = self.analyser.get_measured_spectrum(spectrum_id)
+        spectrum = self.analyser.do_measurement()
         self.spectrum.axes.cla()
         spectrum.show_plane(self.spectrum.axes)
         self.spectrum.draw()
-        self.analyser.finish_measurement()
 
     def test_data(self):
         print('testing data')
-        base_dir = 'D:\git\TAU_ARPES\Spectrum_1'
+        base_dir = "C:\\Users\\Scienta Omicron\\git\\TAU_ARPES\\Spectrum_1"
         spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
         spectrum = peak.PeakSpectrum()
         spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
