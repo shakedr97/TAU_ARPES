@@ -54,21 +54,21 @@ class DaqWindow(QMainWindow):
         # kinetic energy
         self.kinetic_energy = QHBoxLayout()
         self.KE_label = QLabel('kinetic energy (eV)')
-        self.KE_input = QLineEdit()
+        self.KE_input = QLineEdit('1.5')
         self.kinetic_energy.addWidget(self.KE_label)
         self.kinetic_energy.addWidget(self.KE_input)
 
         # dwell time
         self.dwell_time = QHBoxLayout()
         self.DT_label = QLabel('dwell time (s)')
-        self.DT_input = QLineEdit()
+        self.DT_input = QLineEdit('1')
         self.dwell_time.addWidget(self.DT_label)
         self.dwell_time.addWidget(self.DT_input)
 
         # time points
         self.points = QHBoxLayout()
         self.points_label = QLabel('points: [start_1, stop_1, step_1],...')
-        self.points_input = QLineEdit()
+        self.points_input = QLineEdit('-500_600_100')
         self.points.addWidget(self.points_label)
         self.points.addWidget(self.points_input)
         
@@ -123,13 +123,15 @@ class DaqWindow(QMainWindow):
             return
         sweep = {}
         for point in points:
+            QApplication.processEvents()
             self.stage.go_to_time_fs(point)
             spectrum = self.analyser.do_measurement(KE, DT)
             self.spectrum.axes.cla()
             spectrum.show_plane(self.spectrum.axes)
             self.spectrum.draw()
             sweep[point] = sum(sum(spectrum.raw_count_data))
-            self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep])
+            self.sweep_canvas.axes.cla()
+            self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
             self.sweep_canvas.draw()
 
 
