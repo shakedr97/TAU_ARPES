@@ -1,15 +1,11 @@
 import PEAK.DA30 as DA30
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QMenu, QHBoxLayout
+from PyQt6.QtCore import QSize
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout
 import matplotlib as plt
 plt.use('Qt5Agg')
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-
 from StandaStage.standa_api import StandaStage, Standa
-
 import sys
 
 class SpectrumCanvas(FigureCanvasQTAgg):
@@ -92,13 +88,11 @@ class DaqWindow(QMainWindow):
         self.set_t_0.addWidget(self.new_t_0_input)
         self.set_t_0.addWidget(self.set_new_t_0)
 
-        
-        
         # spectrum
         self.spectrum = SpectrumCanvas()
 
         # sweep
-        self.sweep = SweepCanvas()
+        self.sweep_canvas = SweepCanvas()
 
         self.layout.addWidget(self.connect_analyser)
         self.layout.addWidget(self.connect_stage)
@@ -108,7 +102,7 @@ class DaqWindow(QMainWindow):
         self.layout.addWidget(self.get_spectrum)
         self.layout.addLayout(self.configuration)
         self.layout.addWidget(self.spectrum)
-        self.layout.addWidget(self.sweep)
+        self.layout.addWidget(self.sweep_canvas)
 
         container = QWidget()
         container.setLayout(self.layout)
@@ -116,14 +110,29 @@ class DaqWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def do_sweep(self):
-        if self.KE_input.text() != "" and self.DT_input != "":
+        if self.KE_input.text() == "" or self.DT_input == "":
             print('enter kinetic energy and dwell time values before sweep')
+            return
+        KE = float(self.KE_input.text())
+        DT = float(self.DT_input.text())
         try:
-            points = self.get_sweep_points(self.points_input.text())
-        finally:
-            print('sweep points enter in a non-valid manner')
+            points = DaqWindow.get_sweep_points(self.points_input.text())
+        except Exception as e:
+            print('sweep points entered in a non-valid manner')
+            print(e)
+            return
+        sweep = {}
         for point in points:
             self.stage.go_to_time_fs(point)
+            spectrum = self.analyser.do_measurement(KE, DT)
+            self.spectrum.axes.cla()
+            spectrum.show_plane(self.spectrum.axes)
+            self.spectrum.draw()
+            sweep[point] = sum(sum(spectrum.raw_count_data))
+            self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep])
+            self.sweep_canvas.draw()
+
+
         
     def get_sweep_points(points_text):
         points = []
