@@ -30,11 +30,11 @@ class DA30:
                         'StoreAcquisitionData': False,
                         }    
 
-        spectrum_id = self.analyser.define_spectrum(spectrum_definition)
-        self.analyser.setup_spectrum(spectrum_id)
-        self.analyser.acquire(spectrum_id)
-        spectrum = self.analyser.get_measured_spectrum(spectrum_id)
-        self.analyser.finish_spectrum(spectrum_id)
+        self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
+        self.analyser.setup_spectrum(self.spectrum_id)
+        self.analyser.acquire(self.spectrum_id)
+        spectrum = self.analyser.get_measured_spectrum(self.spectrum_id)
+        self.analyser.finish_spectrum(self.spectrum_id)
         self.analyser.finish_measurement()
         return spectrum
     
@@ -57,11 +57,11 @@ class DA30:
                         }    
 
         self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
-        self.analyser.setup_spectrum(spectrum_id)
+        self.analyser.setup_spectrum(self.spectrum_id)
         self._is_measuring = True
     
     def take_measurement(self):
-        return self.analyser.get_measured_spectrum(spectrum_id)
+        return self.analyser.get_measured_spectrum(self.spectrum_id)
 
     def stop_measurement(self):
         self.analyser.finish_spectrum(self.spectrum_id)
