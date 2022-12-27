@@ -9,6 +9,24 @@ from matplotlib.figure import Figure
 from StandaStage.standa_api import StandaStage, Standa
 import sys
 
+from PyQt6.QtGui import QMovie
+
+class Loading(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setFixedSize(200, 200)
+        # self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint)
+        self.label_animation = QLabel()
+        self.movie = QMovie('Loading_2.gif')
+        self.label_animation.setMovie(self.movie)
+
+    def startAnimation(self):
+        self.movie.start()
+        self.show()
+    
+    def stopAnimation(self):
+        self.movie.stop()
+        self.close()
 
 window_height = 900
 window_width = 1500
@@ -70,11 +88,12 @@ class AnalyserMission(enum.Enum):
 class AnalyserWorker(QRunnable):
     def __init__(self, controls, mission):
         QRunnable.__init__(self)
-        self.controls = controls
+        self.controls: Controls = controls
         self.mission = mission
     
     @pyqtSlot()
     def run(self):
+        # self.controls.sweep_spinner.startAnimation()
         if self.mission == AnalyserMission.GET_SPECTRUM:
             if self.controls.KE_input.text() != "" and self.controls.DT_input != "":
                 KE = float(self.controls.KE_input.text())
@@ -126,6 +145,7 @@ class AnalyserWorker(QRunnable):
             except Exception as e:
                 print(e)
                 self.controls.analyser.stop_measurement()
+        # self.controls.sweep_spinner.stopAnimation()
 
 class Controls(QWidget):
     def __init__(self, spectrum, sweep_canvas, threadpool):
@@ -168,6 +188,7 @@ class Controls(QWidget):
         self.start_sweep = QHBoxLayout()
         self.start_sweep_button: QWidget = QPushButton("start sweep")
         self.start_sweep_button.clicked.connect(self.do_sweep)
+        # self.sweep_spinner = Loading()
         self.start_sweep.addWidget(self.start_sweep_button)
         # self.start_sweep.addWidget(self.sweep_spinner)
 
