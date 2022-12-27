@@ -1,13 +1,17 @@
 import enum
 import PEAK.DA30 as DA30
 from PyQt6.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QRadioButton
 import matplotlib as plt
 plt.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from StandaStage.standa_api import StandaStage, Standa
 import sys
+
+
+window_height = 900
+window_width = 1500
 
 class SpectrumCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=4, height=3, dpi=100):
@@ -30,6 +34,7 @@ class ConnectAnalyser(QRunnable):
     def run(self):
         try:
             self.controls.analyser = DA30.DA30()
+            self.controls.connect_analyser_indicator.light_up()
         except Exception as e:
             print(repr(e))
 
@@ -43,8 +48,20 @@ class ConnectStage(QRunnable):
         try:
             device_id = Standa.find_device()
             self.controls.stage = StandaStage(device_id)
+            self.controls.connect_stage_indicator.light_up()
         except Exception as e:
             print(repr(e))
+
+class Indicator(QRadioButton):
+    def __init__(self):
+        QRadioButton.__init__(self)
+        self.setGeometry(200, 150, 120, 40)
+    
+    def light_up(self):
+        self.setStyleSheet("QRadioButton::indicator"
+                                   "{"
+                                   "background-color : lightgreen"
+                                   "}")
 
 class AnalyserMission(enum.Enum):
     GET_SPECTRUM = 1
@@ -112,21 +129,32 @@ class AnalyserWorker(QRunnable):
 class Controls(QWidget):
     def __init__(self, spectrum, sweep_canvas, threadpool):
         QWidget.__init__(self)
-        self.setFixedSize(QSize(500, 1000))
+        self.setFixedSize(QSize(window_width / 3, window_height))
         self.spectrum = spectrum
         self.sweep_canvas = sweep_canvas
         self.threadpool = threadpool
         self.controls_layout = QVBoxLayout()
 
         # connect to analyser button
-        self.connect_analyser = QPushButton("connect analyser")
-        self.connect_analyser.clicked.connect(self.connect_to_analyser)
+        self.connect_analyser = QHBoxLayout()
+        self.connect_analyser_button = QPushButton("connect analyser")
+        self.connect_analyser_button.clicked.connect(self.connect_to_analyser)
+        self.connect_analyser_indicator = Indicator()
+        self.connect_analyser.addWidget(self.connect_analyser_button)
+        self.connect_analyser.addWidget(self.connect_analyser_indicator)
         
         # connect to stage button
         self.connect_stage = QPushButton("connect stage")
-        self.connect_stage.clicked.connect(self.connect_to_stage)
+        
+        self.connect_stage = QHBoxLayout()
+        self.connect_stage_button = QPushButton("connect stage")
+        self.connect_stage_button.clicked.connect(self.connect_to_stage)
+        self.connect_stage_indicator = Indicator()
+        self.connect_stage.addWidget(self.connect_stage_button)
+        self.connect_stage.addWidget(self.connect_stage_indicator)
 
         # start sweep button
+        
         self.start_sweep = QPushButton("start sweep")
         self.start_sweep.clicked.connect(self.do_sweep)
 
@@ -182,8 +210,8 @@ class Controls(QWidget):
         self.set_t_0.addWidget(self.new_t_0_input)
         self.set_t_0.addWidget(self.set_new_t_0)
 
-        self.controls_layout.addWidget(self.connect_analyser)
-        self.controls_layout.addWidget(self.connect_stage)
+        self.controls_layout.addLayout(self.connect_analyser)
+        self.controls_layout.addLayout(self.connect_stage)
         self.controls_layout.addWidget(self.stage_position)
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addWidget(self.start_sweep)
@@ -238,7 +266,7 @@ class DaqWindow(QMainWindow):
         self.threadpool = QThreadPool()
         
         self.setWindowTitle("TAU ARPES DAQ")
-        self.setFixedSize(QSize(1500, 1000))
+        self.setFixedSize(QSize(window_width, window_height))
 
         self.layout = QHBoxLayout()
         self.results = QVBoxLayout()
