@@ -1,5 +1,6 @@
+import enum
 import PEAK.DA30 as DA30
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout
 import matplotlib as plt
 plt.use('Qt5Agg')
@@ -20,12 +21,84 @@ class SweepCanvas(FigureCanvasQTAgg):
         self.axes = fig.add_subplot(111)
         super(SweepCanvas, self).__init__(fig)
 
+class ConnectAnalyser(QRunnable):
+    def __init__(self, controls):
+        QRunnable.__init__(self)
+        self.controls = controls
+    
+    @pyqtSlot()
+    def run(self):
+        try:
+            self.controls.analyser = DA30.DA30()
+        except Exception as e:
+            print(repr(e))
+
+class ConnectStage(QRunnable):
+    def __init__(self, controls):
+        QRunnable.__init__(self)
+        self.controls = controls
+    
+    @pyqtSlot()
+    def run(self):
+        try:
+            device_id = Standa.find_device()
+            self.controls.stage = StandaStage(device_id)
+        except Exception as e:
+            print(repr(e))
+
+class AnalyserMission(enum.Enum):
+    GET_SPECTRUM = 1
+    SWEEP = 2
+
+class AnalyserWorker(QRunnable):
+    def __init__(self, controls, mission):
+        QRunnable.__init__(self)
+        self.controls = controls
+        self.mission = mission
+    
+    @pyqtSlot()
+    def run(self):
+        if self.mission == AnalyserMission.GET_SPECTRUM:
+            pass
+        elif self.mission == AnalyserMission.SWEEP:
+            if self.controls.KE_input.text() == "" or self.controls.DT_input.text() == "":
+                print('enter kinetic energy and dwell time values before sweep')
+                return
+            KE = float(self.controls.KE_input.text())
+            DT = float(self.controls.DT_input.text())
+            try:
+                points = Controls.get_sweep_points(self.controls.points_input.text())
+            except Exception as e:
+                print('sweep points entered in a non-valid manner')
+                print(e)
+                return
+            sweep = {point : 0 for point in points}
+            self.controls.analyser.start_measurement(KE, DT)
+            for i in range(int(self.controls.repetitions_input.text())):
+                for point in points:
+                    if not self.controls.continue_sweep:
+                        self.controls.analyser.stop_measurement()
+                        return
+                    QApplication.processEvents()
+                    self.controls.stage.go_to_time_fs(point)
+                    spectrum = self.controls.analyser.take_measurement()
+                    self.controls.spectrum.axes.cla()
+                    spectrum.show_plane(self.controls.spectrum.axes)
+                    self.controls.spectrum.draw()
+                    sweep[point] = (sweep[point] * (i - 1) + sum(sum(spectrum.raw_count_data))) / max(i, 1)
+                    self.controls.sweep_canvas.axes.cla()
+                    self.controls.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
+                    self.controls.sweep_canvas.draw()
+                points.reverse()
+            self.controls.analyser.stop_measurement()
+
 class Controls(QWidget):
-    def __init__(self, spectrum, sweep_canvas):
+    def __init__(self, spectrum, sweep_canvas, threadpool):
         QWidget.__init__(self)
         self.setFixedSize(QSize(500, 1000))
         self.spectrum = spectrum
         self.sweep_canvas = sweep_canvas
+        self.threadpool = threadpool
         self.controls_layout = QVBoxLayout()
 
         # connect to analyser button
@@ -39,6 +112,10 @@ class Controls(QWidget):
         # start sweep button
         self.start_sweep = QPushButton("start sweep")
         self.start_sweep.clicked.connect(self.do_sweep)
+
+        # stop sweep button
+        self.stop_sweep = QPushButton('stop sweep')
+        self.stop_sweep.clicked.connect(self.do_stop_sweep)
 
         # get stage position button
         self.stage_position = QPushButton("get stage position")
@@ -101,24 +178,19 @@ class Controls(QWidget):
         self.controls_layout.addWidget(self.stage_position)
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addWidget(self.start_sweep)
+        self.controls_layout.addWidget(self.stop_sweep)
         self.controls_layout.addWidget(self.get_spectrum)
         self.controls_layout.addLayout(self.configuration)
 
         self.setLayout(self.controls_layout)
 
     def connect_to_analyser(self):
-        try:
-            self.analyser = DA30.DA30()
-        except Exception as e:
-            checked = False
-            print(repr(e))
+        worker = ConnectAnalyser(self)
+        self.threadpool.start(worker)
     
     def connect_to_stage(self):
-        try:
-            device_id = Standa.find_device()
-            self.stage = StandaStage(device_id)
-        except Exception as e:
-            print(repr(e))
+        worker = ConnectStage(self)
+        self.threadpool.start(worker)
     
     def get_stage_position(self):
         print(self.stage.get_pos())
@@ -129,34 +201,13 @@ class Controls(QWidget):
         self.new_t_0_input.clear()
     
     def do_sweep(self):
-        if self.KE_input.text() == "" or self.DT_input.text() == "":
-            print('enter kinetic energy and dwell time values before sweep')
-            return
-        KE = float(self.KE_input.text())
-        DT = float(self.DT_input.text())
-        try:
-            points = Controls.get_sweep_points(self.points_input.text())
-        except Exception as e:
-            print('sweep points entered in a non-valid manner')
-            print(e)
-            return
-        sweep = {point : 0 for point in points}
-        self.analyser.start_measurement(KE, DT)
-        for i in range(int(self.repetitions_input.text())):
-            for point in points:
-                QApplication.processEvents()
-                self.stage.go_to_time_fs(point)
-                spectrum = self.analyser.take_measurement()
-                self.spectrum.axes.cla()
-                spectrum.show_plane(self.spectrum.axes)
-                self.spectrum.draw()
-                sweep[point] = (sweep[point] * (i - 1) + sum(sum(spectrum.raw_count_data))) / max(i, 1)
-                self.sweep_canvas.axes.cla()
-                self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
-                self.sweep_canvas.draw()
-            points.reverse()
-        self.analyser.stop_measurement()
+        worker = AnalyserWorker(self, AnalyserMission.SWEEP)
+        self.continue_sweep = True
+        self.threadpool.start(worker)
     
+    def do_stop_sweep(self):
+        self.continue_sweep = False
+
     def get_sweep_points(points_text):
         points = []
         for section in points_text.split(','):
@@ -179,6 +230,9 @@ class Controls(QWidget):
 class DaqWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        self.threadpool = QThreadPool()
+        
         self.setWindowTitle("TAU ARPES DAQ")
         self.setFixedSize(QSize(1500, 1000))
 
@@ -192,7 +246,7 @@ class DaqWindow(QMainWindow):
         self.results.addWidget(self.spectrum)
         self.results.addWidget(self.sweep_canvas)
 
-        self.controls = Controls(self.spectrum, self.sweep_canvas)
+        self.controls = Controls(self.spectrum, self.sweep_canvas, self.threadpool)
 
         self.layout.addWidget(self.controls)
         self.layout.addLayout(self.results)
