@@ -82,7 +82,13 @@ class StandaStage(Standa):
         self.zero_pos = self.zero_pos + self.stage_pos_in_fs * new_time
     
     def set_zero_pos_by_position(self, position: float):
-        self.zero_pos = 6000000 + round((position - 150.0) * 38043.9)
+        self.zero_pos = StandaStage.stage_mm_to_pos(position)
+    
+    def stage_pos_to_mm(pos: int) -> float:
+        return 150.0 + (pos - 6000000) / StandaStage.stage_pos_in_mm
+
+    def stage_mm_to_pos(mm: float) -> int:
+        return 6000000 + round((mm - 150.0) * StandaStage.stage_pos_in_mm)
 
     def set_current_pos_zero_pos(self):
         self.zero_pos = self.get_pos()
@@ -122,6 +128,9 @@ class StandaStage(Standa):
     
     def move_to(self, pos: int):
         self.lib.command_move(self._device_id, pos, 0)
+    
+    def move_to_mm(self, mm: float):
+        self.lib.command_move(self._device_id, StandaStage.stage_mm_to_pos(mm), 0)
 
     def dispose(self):
         self.lib.close_device(byref(cast(self._device_id, POINTER(c_int))))
@@ -142,8 +151,12 @@ class StandaStage(Standa):
             print(f'pos - {pos.Position} micropos - {pos.uPosition}')
         return pos.Position
     
-
-    
+    def get_pos_mm(self) -> float:
+        pos = get_position_t()
+        res = self.lib.get_position(self._device_id, byref(pos))
+        if res == Result.Ok:
+            print(f'pos - {pos.Position} micropos - {pos.uPosition}')
+        return StandaStage.stage_pos_to_mm(pos.Position)
 
 if __name__ == '__main__':
     # sanity

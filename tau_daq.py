@@ -129,6 +129,7 @@ class AnalyserWorker(QRunnable):
 
 class Controls(QWidget):
     def __init__(self, spectrum, sweep_canvas, threadpool):
+        self.stage: StandaStage = None
         QWidget.__init__(self)
         self.setFixedSize(QSize(window_width // 3, window_height))
         self.spectrum = spectrum
@@ -154,6 +155,15 @@ class Controls(QWidget):
         self.connect_stage.addWidget(self.connect_stage_button)
         self.connect_stage.addWidget(self.connect_stage_indicator)
 
+        # get stage position button
+        self.stage_position = QHBoxLayout()
+        self.stage_position_button = QPushButton("get stage position")
+        self.stage_position_button.clicked.connect(self.get_stage_position)
+        self.stage_position_output = QLabel()
+        self.stage_position_output.setMaximumSize(QSize(100, 10))
+        self.stage_position.addWidget(self.stage_position_button)
+        self.stage_position.addWidget(self.stage_position_output)
+
         # start sweep button
         
         self.start_sweep = QPushButton("start sweep")
@@ -162,10 +172,6 @@ class Controls(QWidget):
         # stop sweep button
         self.stop_sweep = QPushButton('stop sweep')
         self.stop_sweep.clicked.connect(self.do_stop_sweep)
-
-        # get stage position button
-        self.stage_position = QPushButton("get stage position")
-        self.stage_position.clicked.connect(self.get_stage_position)
 
         # get specturm button
         self.get_spectrum = QPushButton("get spectrum")
@@ -200,13 +206,22 @@ class Controls(QWidget):
         self.configuration.addLayout(self.dwell_time)
         self.configuration.addLayout(self.points)
 
+        # set new stage position
+        self.set_stage_pos = QHBoxLayout()
+        self.set_stage_pos_label = QLabel('new stage position in mm')
+        self.set_stage_pos_input = QLineEdit()
+        self.set_stage_pos_button = QPushButton('Ok')
+        self.set_stage_pos_button.clicked.connect(self.do_set_stage_position)
+        self.set_stage_pos.addWidget(self.set_stage_pos_label)
+        self.set_stage_pos.addWidget(self.set_stage_pos_input)
+        self.set_stage_pos.addWidget(self.set_stage_pos_button)
+        
         # setting new t0
         self.set_t_0 = QHBoxLayout()
         self.new_t_0_label = QLabel('new t0 in fs')
         self.new_t_0_input = QLineEdit()
         self.set_new_t_0 = QPushButton('Ok')
         self.set_new_t_0.clicked.connect(self.set_new_t_0_value)
-
         self.set_t_0.addWidget(self.new_t_0_label)
         self.set_t_0.addWidget(self.new_t_0_input)
         self.set_t_0.addWidget(self.set_new_t_0)
@@ -217,16 +232,16 @@ class Controls(QWidget):
         self.new_t_0_input_position = QLineEdit()
         self.set_new_t_0_position = QPushButton('Ok')
         self.set_new_t_0_position.clicked.connect(self.set_new_t_0_value_position)
-
         self.set_t_0_position.addWidget(self.new_t_0_position_label)
         self.set_t_0_position.addWidget(self.new_t_0_input_position)
         self.set_t_0_position.addWidget(self.set_new_t_0_position)
 
         self.controls_layout.addLayout(self.connect_analyser)
         self.controls_layout.addLayout(self.connect_stage)
-        self.controls_layout.addWidget(self.stage_position)
+        self.controls_layout.addLayout(self.stage_position)
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addLayout(self.set_t_0_position)
+        self.controls_layout.addLayout(self.set_stage_pos)
         self.controls_layout.addWidget(self.start_sweep)
         self.controls_layout.addWidget(self.stop_sweep)
         self.controls_layout.addWidget(self.get_spectrum)
@@ -243,7 +258,7 @@ class Controls(QWidget):
         self.threadpool.start(worker)
     
     def get_stage_position(self):
-        print(self.stage.get_pos())
+        self.stage_position_output.setText('{:10.4f}'.format(self.stage.get_pos_mm()))
 
     def set_new_t_0_value(self):
         t_0 = int(self.new_t_0_input.text())
@@ -254,6 +269,10 @@ class Controls(QWidget):
         position = float(self.new_t_0_input_position.text())
         self.stage.set_zero_pos_by_position(position)
         self.new_t_0_input_position.clear()
+
+    def do_set_stage_position(self):
+        position = float(self.set_stage_pos_input.text())
+        self.stage.move_to_mm(position)
 
     def do_sweep(self):
         worker = AnalyserWorker(self, AnalyserMission.SWEEP)
