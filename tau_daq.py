@@ -71,12 +71,20 @@ class DaqWindow(QMainWindow):
         self.points_input = QLineEdit('-500_600_100')
         self.points.addWidget(self.points_label)
         self.points.addWidget(self.points_input)
+
+        # number of repetitions
+        self.repetitions = QHBoxLayout()
+        self.repetitions_label = QLabel('number of sweeps')
+        self.repetitions_input = QLineEdit('1')
+        self.repetitions.addWidget(self.repetitions_label)
+        self.repetitions.addWidget(self.repetitions_input)
         
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
         self.configuration.addLayout(self.dwell_time)
         self.configuration.addLayout(self.points)
-        
+        self.configuration.addLayout(self.repetitions)
+
         # setting new t0
         self.set_t_0 = QHBoxLayout()
         self.new_t_0_label = QLabel('new t0 in fs')
@@ -121,19 +129,21 @@ class DaqWindow(QMainWindow):
             print('sweep points entered in a non-valid manner')
             print(e)
             return
-        sweep = {}
+        sweep = {point : 0 for point in points}
         self.analyser.start_measurement(KE, DT)
-        for point in points:
-            QApplication.processEvents()
-            self.stage.go_to_time_fs(point)
-            spectrum = self.analyser.take_measurement()
-            self.spectrum.axes.cla()
-            spectrum.show_plane(self.spectrum.axes)
-            self.spectrum.draw()
-            sweep[point] = sum(sum(spectrum.raw_count_data))
-            self.sweep_canvas.axes.cla()
-            self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
-            self.sweep_canvas.draw()
+        for i in range(int(self.repetitions_input.text())):
+            for point in points:
+                QApplication.processEvents()
+                self.stage.go_to_time_fs(point)
+                spectrum = self.analyser.take_measurement()
+                self.spectrum.axes.cla()
+                spectrum.show_plane(self.spectrum.axes)
+                self.spectrum.draw()
+                sweep[point] = (sweep[point] * (i - 1) + sum(sum(spectrum.raw_count_data))) / max(i, 1)
+                self.sweep_canvas.axes.cla()
+                self.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
+                self.sweep_canvas.draw()
+            points.reverse()
         self.analyser.stop_measurement()
 
 

@@ -61,6 +61,7 @@ class DA30:
         self._is_measuring = True
     
     def take_measurement(self):
+        self.analyser.acquire(self.spectrum_id)
         return self.analyser.get_measured_spectrum(self.spectrum_id)
 
     def stop_measurement(self):
