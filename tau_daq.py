@@ -165,9 +165,11 @@ class Controls(QWidget):
         self.stage_position.addWidget(self.stage_position_output)
 
         # start sweep button
-        
-        self.start_sweep = QPushButton("start sweep")
-        self.start_sweep.clicked.connect(self.do_sweep)
+        self.start_sweep = QHBoxLayout()
+        self.start_sweep_button: QWidget = QPushButton("start sweep")
+        self.start_sweep_button.clicked.connect(self.do_sweep)
+        self.start_sweep.addWidget(self.start_sweep_button)
+        # self.start_sweep.addWidget(self.sweep_spinner)
 
         # stop sweep button
         self.stop_sweep = QPushButton('stop sweep')
@@ -242,7 +244,7 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addLayout(self.set_t_0_position)
         self.controls_layout.addLayout(self.set_stage_pos)
-        self.controls_layout.addWidget(self.start_sweep)
+        self.controls_layout.addLayout(self.start_sweep)
         self.controls_layout.addWidget(self.stop_sweep)
         self.controls_layout.addWidget(self.get_spectrum)
         self.controls_layout.addLayout(self.configuration)
