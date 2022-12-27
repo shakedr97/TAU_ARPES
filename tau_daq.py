@@ -59,7 +59,19 @@ class AnalyserWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         if self.mission == AnalyserMission.GET_SPECTRUM:
-            pass
+            if self.controls.KE_input.text() != "" and self.controls.DT_input != "":
+                KE = float(self.controls.KE_input.text())
+                DT = float(self.controls.DT_input.text())
+                self.controls.analyser.start_measurement(KE, DT)
+            else:
+                print('did not receive kinetic energy input and dwelling time input, defaulting to 1.75eV and 1.0s')
+                self.controls.analyser.start_measurement()
+            while not self.controls.stop:
+                self.controls.spectrum.axes.cla()
+                spectrum = self.controls.analyser.take_measurement()
+                spectrum.show_plane(self.controls.spectrum.axes)
+                self.controls.spectrum.draw()
+            self.controls.analyser.stop_measurement()
         elif self.mission == AnalyserMission.SWEEP:
             if self.controls.KE_input.text() == "" or self.controls.DT_input.text() == "":
                 print('enter kinetic energy and dwell time values before sweep')
@@ -76,10 +88,10 @@ class AnalyserWorker(QRunnable):
             self.controls.analyser.start_measurement(KE, DT)
             count = 0
             try:
-                while self.controls.continue_sweep:
+                while not self.controls.stop:
                     count += 1
                     for point in points:
-                        if not self.controls.continue_sweep:
+                        if self.controls.stop:
                             self.controls.analyser.stop_measurement()
                             return
                         QApplication.processEvents()
@@ -199,11 +211,11 @@ class Controls(QWidget):
     
     def do_sweep(self):
         worker = AnalyserWorker(self, AnalyserMission.SWEEP)
-        self.continue_sweep = True
+        self.stop = False
         self.threadpool.start(worker)
     
     def do_stop_sweep(self):
-        self.continue_sweep = False
+        self.stop = True
 
     def get_sweep_points(points_text):
         points = []
@@ -214,14 +226,9 @@ class Controls(QWidget):
         return points
     
     def scan_spectrum(self):
-        if self.KE_input.text() != "" and self.DT_input != "":
-            spectrum = self.analyser.do_measurement(float(self.KE_input.text()), float(self.DT_input.text()))
-        else:
-            print('did not receive kinetic energy input and dwelling time input, defaulting to 1.75eV and 1.0s')
-            spectrum = self.analyser.do_measurement()
-        self.spectrum.axes.cla()
-        spectrum.show_plane(self.spectrum.axes)
-        self.spectrum.draw()
+        worker = AnalyserWorker(self, AnalyserMission.GET_SPECTRUM)
+        self.stop = False
+        self.threadpool.start(worker)
 
 
 class DaqWindow(QMainWindow):
