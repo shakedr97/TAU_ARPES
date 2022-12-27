@@ -81,6 +81,9 @@ class StandaStage(Standa):
     def set_zero_pos_by_time(self, new_time: int):
         self.zero_pos = self.zero_pos + self.stage_pos_in_fs * new_time
     
+    def set_zero_pos_by_position(self, position: float):
+        self.zero_pos = 6000000 + round((position - 150.0) * 38043.9)
+
     def set_current_pos_zero_pos(self):
         self.zero_pos = self.get_pos()
     
