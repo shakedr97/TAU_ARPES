@@ -65,8 +65,11 @@ class DA30:
         return self.analyser.get_measured_spectrum(self.spectrum_id)
 
     def stop_measurement(self):
-        self.analyser.finish_spectrum(self.spectrum_id)
-        self.analyser.finish_measurement()
+        try:
+            self.analyser.finish_spectrum(self.spectrum_id)
+            self.analyser.finish_measurement()
+        except Exception as e:
+            print(e)
 
 test = 'data'
 

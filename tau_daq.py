@@ -74,23 +74,28 @@ class AnalyserWorker(QRunnable):
                 return
             sweep = {point : 0 for point in points}
             self.controls.analyser.start_measurement(KE, DT)
-            for i in range(int(self.controls.repetitions_input.text())):
-                for point in points:
-                    if not self.controls.continue_sweep:
-                        self.controls.analyser.stop_measurement()
-                        return
-                    QApplication.processEvents()
-                    self.controls.stage.go_to_time_fs(point)
-                    spectrum = self.controls.analyser.take_measurement()
-                    self.controls.spectrum.axes.cla()
-                    spectrum.show_plane(self.controls.spectrum.axes)
-                    self.controls.spectrum.draw()
-                    sweep[point] = (sweep[point] * (i - 1) + sum(sum(spectrum.raw_count_data))) / max(i, 1)
-                    self.controls.sweep_canvas.axes.cla()
-                    self.controls.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
-                    self.controls.sweep_canvas.draw()
-                points.reverse()
-            self.controls.analyser.stop_measurement()
+            count = 0
+            try:
+                while self.controls.continue_sweep:
+                    count += 1
+                    for point in points:
+                        if not self.controls.continue_sweep:
+                            self.controls.analyser.stop_measurement()
+                            return
+                        QApplication.processEvents()
+                        self.controls.stage.go_to_time_fs(point)
+                        spectrum = self.controls.analyser.take_measurement()
+                        self.controls.spectrum.axes.cla()
+                        spectrum.show_plane(self.controls.spectrum.axes)
+                        self.controls.spectrum.draw()
+                        sweep[point] = (sweep[point] * (count - 1) + sum(sum(spectrum.raw_count_data))) / count
+                        self.controls.sweep_canvas.axes.cla()
+                        self.controls.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
+                        self.controls.sweep_canvas.draw()
+                    points.reverse()
+            except Exception as e:
+                print(e)
+                self.controls.analyser.stop_measurement()
 
 class Controls(QWidget):
     def __init__(self, spectrum, sweep_canvas, threadpool):
@@ -148,19 +153,11 @@ class Controls(QWidget):
         self.points_input = QLineEdit('-500_600_100')
         self.points.addWidget(self.points_label)
         self.points.addWidget(self.points_input)
-
-        # number of repetitions
-        self.repetitions = QHBoxLayout()
-        self.repetitions_label = QLabel('number of sweeps')
-        self.repetitions_input = QLineEdit('1')
-        self.repetitions.addWidget(self.repetitions_label)
-        self.repetitions.addWidget(self.repetitions_input)
         
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
         self.configuration.addLayout(self.dwell_time)
         self.configuration.addLayout(self.points)
-        self.configuration.addLayout(self.repetitions)
 
         # setting new t0
         self.set_t_0 = QHBoxLayout()
