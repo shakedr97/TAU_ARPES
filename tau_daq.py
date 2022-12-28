@@ -2,6 +2,7 @@ import enum
 import PEAK.DA30 as DA30
 from PyQt6.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QRadioButton
+from PyQt6.QtGui import QPixmap
 import matplotlib as plt
 plt.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
@@ -51,9 +52,11 @@ class ConnectAnalyser(QRunnable):
     @pyqtSlot()
     def run(self):
         try:
+            self.controls.connect_analyser_indicator.set_ongoing()
             self.controls.analyser = DA30.DA30()
-            self.controls.connect_analyser_indicator.light_up()
+            self.controls.connect_analyser_indicator.set_check()
         except Exception as e:
+            self.controls.connect_analyser_indicator.set_fail()
             print(repr(e))
 
 class ConnectStage(QRunnable):
@@ -64,22 +67,39 @@ class ConnectStage(QRunnable):
     @pyqtSlot()
     def run(self):
         try:
+            self.controls.connect_stage_indicator.set_ongoing()
             device_id = Standa.find_device()
             self.controls.stage = StandaStage(device_id)
-            self.controls.connect_stage_indicator.light_up()
+            self.controls.connect_stage_indicator.set_check()
         except Exception as e:
+            self.controls.connect_stage_indicator.set_fail()
             print(repr(e))
 
-class Indicator(QRadioButton):
+class Indicator(QLabel):
     def __init__(self):
-        QRadioButton.__init__(self)
-        self.setGeometry(200, 150, 120, 40)
+        QLabel.__init__(self)
+        self.setFixedSize(QSize(50,50))
+        self.ongoing = QPixmap('images\hourglass.png')
+        self.ongoing = self.ongoing.scaledToHeight(70)
+        self.ongoing = self.ongoing.scaledToWidth(70)
+        self.check = QPixmap('images\check_mark.png')
+        self.check = self.check.scaledToHeight(50)
+        self.check = self.check.scaledToWidth(50)
+        self.fail = QPixmap('images\\fail_mark.png')
+        self.fail = self.fail.scaledToHeight(50)
+        self.fail = self.fail.scaledToWidth(50)
     
-    def light_up(self):
-        self.setStyleSheet("QRadioButton::indicator"
-                                   "{"
-                                   "background-color : lightgreen"
-                                   "}")
+    def set_ongoing(self):
+        self.setPixmap(self.ongoing)
+        self.show()
+    
+    def set_check(self):
+        self.setPixmap(self.check)
+        self.show()
+    
+    def set_fail(self):
+        self.setPixmap(self.fail)
+        self.show()
 
 class AnalyserMission(enum.Enum):
     GET_SPECTRUM = 1
