@@ -1,7 +1,7 @@
 import enum
 import PEAK.DA30 as DA30
 from PyQt6.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QRadioButton
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout
 from PyQt6.QtGui import QPixmap
 import matplotlib as plt
 plt.use('Qt5Agg')
