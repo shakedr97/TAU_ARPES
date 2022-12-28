@@ -10,25 +10,6 @@ from matplotlib.figure import Figure
 from StandaStage.standa_api import StandaStage, Standa
 import sys
 
-from PyQt6.QtGui import QMovie
-
-class Loading(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setFixedSize(200, 200)
-        # self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint)
-        self.label_animation = QLabel()
-        self.movie = QMovie('Loading_2.gif')
-        self.label_animation.setMovie(self.movie)
-
-    def startAnimation(self):
-        self.movie.start()
-        self.show()
-    
-    def stopAnimation(self):
-        self.movie.stop()
-        self.close()
-
 window_height = 900
 window_width = 1500
 
