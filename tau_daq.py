@@ -1,7 +1,8 @@
 import enum
 import PEAK.DA30 as DA30
 from PyQt6.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt6.QtCore import Qt as Qt
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QSlider
 from PyQt6.QtGui import QPixmap
 import matplotlib as plt
 plt.use('Qt5Agg')
@@ -82,6 +83,18 @@ class Indicator(QLabel):
         self.setPixmap(self.fail)
         self.show()
 
+class PointsSlider(QSlider):
+    def __init__(self):
+        QSlider.__init__(self, Qt.Orientation.Horizontal)
+
+    def setPoints(self, points):
+        self.points = { point: index for (point, index) in zip(points, range(len(points))) }
+        self.setMinimum(0)
+        self.setMaximum(len(points) - 1)
+    
+    def setPosition(self, point):
+        self.setValue(self.points[point])
+
 class AnalyserMission(enum.Enum):
     GET_SPECTRUM = 1
     SWEEP = 2
@@ -121,6 +134,7 @@ class AnalyserWorker(QRunnable):
                 print('sweep points entered in a non-valid manner')
                 print(e)
                 return
+            self.controls.sweep_indicator.setPoints(points)
             sweep = {point : 0 for point in points}
             self.controls.analyser.start_measurement(KE, DT)
             count = 0
@@ -128,6 +142,8 @@ class AnalyserWorker(QRunnable):
                 while not self.controls.stop:
                     count += 1
                     for point in points:
+                        self.controls.sweep_indicator.setPosition(point)
+                        self.controls.sweep_point_indicator.setText(str(point))
                         print(point)
                         if self.controls.stop:
                             self.controls.analyser.stop_measurement()
@@ -186,12 +202,16 @@ class Controls(QWidget):
         self.stage_position.addWidget(self.stage_position_output)
 
         # start sweep button
-        self.start_sweep = QHBoxLayout()
+        self.start_sweep = QVBoxLayout()
         self.start_sweep_button: QWidget = QPushButton("start sweep")
         self.start_sweep_button.clicked.connect(self.do_sweep)
-        # self.sweep_spinner = Loading()
+        self.sweep_indicator = PointsSlider()
+        self.sweep_point_indicator = QLabel()
+        self.sweep_point_indicator.setFixedSize(QSize(30, 30))
         self.start_sweep.addWidget(self.start_sweep_button)
-        # self.start_sweep.addWidget(self.sweep_spinner)
+        self.start_sweep.addWidget(self.sweep_indicator)
+        self.start_sweep.addWidget(self.sweep_point_indicator, alignment=Qt.AlignmentFlag.AlignHCenter)
+
 
         # stop sweep button
         self.stop_sweep = QPushButton('stop sweep')
