@@ -176,6 +176,15 @@ class SweepData:
             f.write(f'time{column_delimiter}counts{row_delimiter}')
             for point in self.sweep:
                 f.write(f'{point}{column_delimiter}{self.sweep[point]}{row_delimiter}')
+    
+    def export_igor_text(self, file_name, column_delimiter = '\t', row_delimiter='\n'):
+        with open(file_name, 'w') as f:
+            f.write(f'IGOR{row_delimiter}')
+            f.write(f'WAVES/D/N=({len(self.sweep)}, {len(self.sweep)}) wave0{row_delimiter}') # FIXME: proper wave dimensions for arbitrary data
+            f.write(f'BEGIN{row_delimiter}')
+            for point in self.sweep:
+                f.write(f'{column_delimiter}{point}{column_delimiter}{self.sweep[point]}{row_delimiter}')
+            f.write('END')
 
 class ExportWorker(QRunnable):
     def __init__(self, data, gui):
