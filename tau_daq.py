@@ -82,6 +82,9 @@ class Indicator(QLabel):
     def set_fail(self):
         self.setPixmap(self.fail)
         self.show()
+    
+    def set_blank(self):
+        self.hide()
 
 class PointsSlider(QSlider):
     def __init__(self):
@@ -107,7 +110,6 @@ class AnalyserWorker(QRunnable):
     
     @pyqtSlot()
     def run(self):
-        # self.controls.sweep_spinner.startAnimation()
         if self.mission == AnalyserMission.GET_SPECTRUM:
             if self.controls.KE_input.text() != "" and self.controls.DT_input != "":
                 KE = float(self.controls.KE_input.text())
@@ -135,7 +137,7 @@ class AnalyserWorker(QRunnable):
                 print(e)
                 return
             self.controls.sweep_indicator.setPoints(points)
-            sweep = {point : 0 for point in points}
+            self.controls.sweep_data = SweepData({point : 0.0 for point in points}) # FIXME: move sweep data out of controls
             self.controls.analyser.start_measurement(KE, DT)
             count = 0
             try:
@@ -154,15 +156,42 @@ class AnalyserWorker(QRunnable):
                         self.controls.spectrum.axes.cla()
                         spectrum.show_plane(self.controls.spectrum.axes)
                         self.controls.spectrum.draw()
-                        sweep[point] = (sweep[point] * (count - 1) + sum(sum(spectrum.raw_count_data))) / count
+                        self.controls.sweep_data.sweep[point] = (self.controls.sweep_data.sweep[point] * (count - 1) + sum(sum(spectrum.raw_count_data))) / count
                         self.controls.sweep_canvas.axes.cla()
-                        self.controls.sweep_canvas.axes.plot([point for point in sweep], [sweep[point] for point in sweep], marker='o')
+                        time = [point for point in self.controls.sweep_data.sweep]
+                        counts = [self.controls.sweep_data.sweep[point] for point in self.controls.sweep_data.sweep]
+                        self.controls.sweep_canvas.axes.plot(time, counts, marker='o')
                         self.controls.sweep_canvas.draw()
                     points.reverse()
             except Exception as e:
                 print(e)
                 self.controls.analyser.stop_measurement()
-        # self.controls.sweep_spinner.stopAnimation()
+
+class SweepData:
+    def __init__(self, sweep):
+        self.sweep = sweep
+
+    def export(self, file_name, column_delimiter = '\t', row_delimiter='\n'):
+        with open(file_name, 'w') as f:
+            f.write(f'time{column_delimiter}counts{row_delimiter}')
+            for point in self.sweep:
+                f.write(f'{point}{column_delimiter}{self.sweep[point]}{row_delimiter}')
+
+class ExportWorker(QRunnable):
+    def __init__(self, data, gui):
+        QRunnable.__init__(self)
+        self.export_data: SweepData = data
+        self.gui: DaqWindow = gui
+    
+    @pyqtSlot()
+    def run(self):
+        try:
+            self.gui.export_sweep_indicator.set_ongoing()
+            self.export_data.export(self.gui.export_sweep_name_input.text())
+            self.gui.export_sweep_indicator.set_blank()
+        except Exception as e:
+            self.gui.export_sweep_indicator.set_fail()
+            print(repr(e))
 
 class Controls(QWidget):
     def __init__(self, spectrum, sweep_canvas, threadpool):
@@ -173,6 +202,7 @@ class Controls(QWidget):
         self.sweep_canvas = sweep_canvas
         self.threadpool = threadpool
         self.controls_layout = QVBoxLayout()
+        self.sweep_data: SweepData = None
 
         # connect to analyser button
         self.connect_analyser = QHBoxLayout()
@@ -355,9 +385,23 @@ class DaqWindow(QMainWindow):
         self.spectrum = SpectrumCanvas()
 
         # sweep
+        self.sweep_layout = QVBoxLayout()
         self.sweep_canvas = SweepCanvas()
+        self.export_sweep_controls = QHBoxLayout()
+        self.export_sweep_name_label = QLabel('file name')
+        self.export_sweep_name_input = QLineEdit('sweep_data.txt')
+        self.export_sweep_button = QPushButton('export sweep data')
+        self.export_sweep_button.clicked.connect(self.do_export_sweep)
+        self.export_sweep_indicator = Indicator()
+        self.export_sweep_controls.addWidget(self.export_sweep_name_label)
+        self.export_sweep_controls.addWidget(self.export_sweep_name_input)
+        self.export_sweep_controls.addWidget(self.export_sweep_button)
+        self.export_sweep_controls.addWidget(self.export_sweep_indicator)
+        self.sweep_layout.addWidget(self.sweep_canvas)
+        self.sweep_layout.addLayout(self.export_sweep_controls)
+
         self.results.addWidget(self.spectrum)
-        self.results.addWidget(self.sweep_canvas)
+        self.results.addLayout(self.sweep_layout)
 
         self.controls = Controls(self.spectrum, self.sweep_canvas, self.threadpool)
 
@@ -367,7 +411,11 @@ class DaqWindow(QMainWindow):
         container = QWidget()
         container.setLayout(self.layout)
 
-        self.setCentralWidget(container)    
+        self.setCentralWidget(container)
+    
+    def do_export_sweep(self):
+        worker = ExportWorker(self.controls.sweep_data, self)
+        self.threadpool.start(worker)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
