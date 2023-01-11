@@ -66,7 +66,7 @@ class StandaStage(Standa):
     # smaller number - longer optical path
     # 150.0000 mm -> 6000000
     stage_pos_in_mm = 38044
-    stage_pos_in_fs = - 2 * c * stage_pos_in_mm / 1e6
+    stage_pos_in_fs = 0.5 * c * stage_pos_in_mm / 1e6
     refresh_interval_ms = 100 # TODO: is it ok?
 
     def __init__(self, device_id: bytes):

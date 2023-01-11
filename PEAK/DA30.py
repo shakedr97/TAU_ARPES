@@ -62,7 +62,9 @@ class DA30:
     
     def take_measurement(self):
         self.analyser.acquire(self.spectrum_id)
-        return self.analyser.get_measured_spectrum(self.spectrum_id)
+        spectrum = self.analyser.get_measured_spectrum(self.spectrum_id)
+        self.analyser.clear_spectrum(self.spectrum_id)
+        return spectrum
 
     def stop_measurement(self):
         try:

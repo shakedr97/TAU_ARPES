@@ -156,7 +156,10 @@ class AnalyserWorker(QRunnable):
                         self.controls.spectrum.axes.cla()
                         spectrum.show_plane(self.controls.spectrum.axes)
                         self.controls.spectrum.draw()
-                        self.controls.sweep_data.sweep[point] = (self.controls.sweep_data.sweep[point] * (count - 1) + sum(sum(spectrum.raw_count_data))) / count
+                        counts_sum = sum(sum(spectrum.raw_count_data))
+                        print(counts_sum)
+                        print(f'calculating point {count} - point = ({self.controls.sweep_data.sweep[point]} * {count -1} + {counts_sum}) / {count}')
+                        self.controls.sweep_data.sweep[point] = (self.controls.sweep_data.sweep[point] * (count - 1) + counts_sum) / count
                         self.controls.sweep_canvas.axes.cla()
                         time = [point for point in self.controls.sweep_data.sweep]
                         counts = [self.controls.sweep_data.sweep[point] for point in self.controls.sweep_data.sweep]
