@@ -397,7 +397,7 @@ class Controls(QWidget):
         self.stop_sweep.clicked.connect(self.do_stop_sweep)
 
         # get specturm button
-        self.acquire = QPushButton("get spectrum")
+        self.acquire = QPushButton("acquire")
         self.acquire.clicked.connect(self.scan_spectrum)
 
         # sweep configuration
