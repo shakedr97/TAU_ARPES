@@ -122,10 +122,11 @@ class AnalyserMission(enum.Enum):
 
 class AnalyserWorker(QRunnable):
 
-    def __init__(self, controls, mission):
+    def __init__(self, controls, mission, gui):
         QRunnable.__init__(self)
         self.controls: Controls = controls
         self.mission = mission
+        self.gui: DaqWindow = gui
 
     @pyqtSlot()
     def run(self):
@@ -168,6 +169,9 @@ class AnalyserWorker(QRunnable):
             try:
                 while not self.controls.stop:
                     count += 1
+                    self.controls.current_sweep_value.setText(f'{count}')
+                    if count % int(self.controls.save_interval_input.text()) == 0:
+                        self.gui.do_export_spectrum()
                     for point in points:
                         self.controls.sweep_indicator.setPosition(point)
                         self.controls.sweep_point_indicator.setText(str(point))
@@ -312,21 +316,21 @@ class ExportWorker(QRunnable):
         try:
             if self.is_export_raw:
                 self.gui.export_spectrum_indicator.set_ongoing()
+                file_name = self.gui.export_spectrum_name_input.text(
+                ) + f'_{self.gui.controls.current_sweep_value.text()}'
                 if self.gui.export_spectrum_format.currentText() == 'txt':
-                    self.export_data.export_raw(
-                        self.gui.export_spectrum_name_input.text())
+                    self.export_data.export_raw(file_name)
                 elif self.gui.export_spectrum_format.currentText() == 'itx':
-                    self.export_data.export_raw_igor_text(
-                        self.gui.export_spectrum_name_input.text())
+                    self.export_data.export_raw_igor_text(file_name)
                 self.gui.export_spectrum_indicator.set_blank()
             else:
+                file_name = self.gui.export_sweep_name_input.text(
+                ) + f'_{self.gui.controls.current_sweep_value.text()}'
                 self.gui.export_sweep_indicator.set_ongoing()
                 if self.gui.export_sweep_format.currentText() == 'txt':
-                    self.export_data.export(
-                        self.gui.export_sweep_name_input.text())
+                    self.export_data.export(file_name)
                 elif self.gui.export_sweep_format.currentText() == 'itx':
-                    self.export_data.export_igor_text(
-                        self.gui.export_sweep_name_input.text())
+                    self.export_data.export_igor_text(file_name)
                 self.gui.export_sweep_indicator.set_blank()
         except Exception as e:
             if self.is_export_raw:
@@ -338,13 +342,14 @@ class ExportWorker(QRunnable):
 
 class Controls(QWidget):
 
-    def __init__(self, spectrum, sweep_canvas, threadpool):
+    def __init__(self, spectrum, sweep_canvas, threadpool, gui):
         self.stage: StandaStage = None
         QWidget.__init__(self)
         self.setFixedSize(QSize(window_width // 3, window_height))
         self.spectrum = spectrum
         self.sweep_canvas = sweep_canvas
         self.threadpool = threadpool
+        self.gui = gui
         self.controls_layout = QVBoxLayout()
         self.sweep_data: SweepData = None
 
@@ -419,10 +424,26 @@ class Controls(QWidget):
         self.points.addWidget(self.points_label)
         self.points.addWidget(self.points_input)
 
+        # save interval
+        self.save_interval = QHBoxLayout()
+        self.save_interval_label = QLabel('save every x sweeps')
+        self.save_interval_input = QLineEdit('20')
+        self.save_interval.addWidget(self.save_interval_label)
+        self.save_interval.addWidget(self.save_interval_input)
+
+        # current sweep
+        self.current_sweep = QHBoxLayout()
+        self.current_sweep_label = QLabel('current sweep')
+        self.current_sweep_value = QLineEdit('0')
+        self.current_sweep.addWidget(self.current_sweep_label)
+        self.current_sweep.addWidget(self.current_sweep_value)
+
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
         self.configuration.addLayout(self.dwell_time)
         self.configuration.addLayout(self.points)
+        self.configuration.addLayout(self.save_interval)
+        self.configuration.addLayout(self.current_sweep)
 
         # set new stage position
         self.set_stage_pos = QHBoxLayout()
@@ -495,7 +516,7 @@ class Controls(QWidget):
         self.stage.move_to_mm(position)
 
     def do_sweep(self):
-        worker = AnalyserWorker(self, AnalyserMission.SWEEP)
+        worker = AnalyserWorker(self, AnalyserMission.SWEEP, self.gui)
         self.stop = False
         self.threadpool.start(worker)
 
@@ -511,7 +532,7 @@ class Controls(QWidget):
         return points
 
     def scan_spectrum(self):
-        worker = AnalyserWorker(self, AnalyserMission.GET_SPECTRUM)
+        worker = AnalyserWorker(self, AnalyserMission.GET_SPECTRUM, self.gui)
         self.stop = False
         self.threadpool.start(worker)
 
@@ -556,7 +577,7 @@ class DaqWindow(QMainWindow):
         self.export_sweep_name_label = QLabel('file name')
         self.export_sweep_name_input = QLineEdit('sweep_data')
         self.export_sweep_format = QComboBox()
-        self.export_sweep_format.addItems(['txt', 'itx'])
+        self.export_sweep_format.addItems(['itx', 'txt'])
         self.export_sweep_button = QPushButton('export sweep data')
         self.export_sweep_button.clicked.connect(self.do_export_sweep)
         self.export_sweep_indicator = Indicator()
@@ -572,7 +593,7 @@ class DaqWindow(QMainWindow):
         self.results.addLayout(self.sweep_layout)
 
         self.controls = Controls(self.spectrum, self.sweep_canvas,
-                                 self.threadpool)
+                                 self.threadpool, self)
 
         self.layout.addWidget(self.controls)
         self.layout.addLayout(self.results)
