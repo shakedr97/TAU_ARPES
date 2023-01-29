@@ -483,8 +483,8 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.set_t_0_position)
         self.controls_layout.addLayout(self.set_stage_pos)
         self.controls_layout.addLayout(self.start_sweep)
-        self.controls_layout.addWidget(self.stop_sweep)
         self.controls_layout.addWidget(self.aqcuire)
+        self.controls_layout.addWidget(self.stop_sweep)
         self.controls_layout.addLayout(self.configuration)
 
         self.setLayout(self.controls_layout)
