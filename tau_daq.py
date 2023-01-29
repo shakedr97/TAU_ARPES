@@ -556,7 +556,7 @@ class DaqWindow(QMainWindow):
         self.export_spectrum_name_label = QLabel('file name')
         self.export_spectrum_name_input = QLineEdit('spectrum_data')
         self.export_spectrum_format = QComboBox()
-        self.export_spectrum_format.addItems(['txt', 'itx'])
+        self.export_spectrum_format.addItems(['itx', 'txt'])
         self.export_spectrum_button = QPushButton('export spectrum data')
         self.export_spectrum_button.clicked.connect(self.do_export_spectrum)
         self.export_spectrum_indicator = Indicator()
