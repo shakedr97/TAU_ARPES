@@ -6,7 +6,7 @@ import enum
 import PEAK.DA30 as DA30
 from PyQt5.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
 from PyQt5.QtCore import Qt as Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QSlider, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QSlider, QComboBox
 from PyQt5.QtGui import QPixmap
 import matplotlib as plt
 
@@ -474,6 +474,15 @@ class Controls(QWidget):
         self.set_t_0.addWidget(self.new_t_0_input)
         self.set_t_0.addWidget(self.set_new_t_0)
 
+        # current t0
+        self.current_t0_display = QGridLayout()
+        self.current_t0_label = QLabel('current t0')
+        self.current_t0 = QLineEdit()
+        self.current_t0_display.addWidget(
+            self.current_t0, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        self.current_t0_display.addWidget(
+            self.current_t0_label, 0, 0, Qt.AlignmentFlag.AlignCenter)
+
         # setting new t0 position
         self.set_t_0_position = QHBoxLayout()
         self.new_t_0_position_label = QLabel('new t0 in mm')
@@ -488,6 +497,7 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.connect_analyser)
         self.controls_layout.addLayout(self.connect_stage)
         self.controls_layout.addLayout(self.stage_position)
+        self.controls_layout.addLayout(self.current_t0_display)
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addLayout(self.set_t_0_position)
         self.controls_layout.addLayout(self.set_stage_pos)
@@ -509,19 +519,27 @@ class Controls(QWidget):
     def get_stage_position(self):
         self.stage_position_output.setText('{:10.4f}'.format(
             self.stage.get_pos_mm()))
+        self.current_t0.setText(
+            f'{StandaStage.stage_pos_to_mm(self.stage.zero_pos)}.02')
 
     def set_new_t_0_value(self):
         t_0 = int(self.new_t_0_input.text())
         self.stage.set_zero_pos_by_time(t_0)
+        self.current_t0.setText(
+            f'{StandaStage.stage_pos_to_mm(self.stage.zero_pos)}.02')
         self.new_t_0_input.clear()
 
     def set_new_t_0_value_position(self):
         position = float(self.new_t_0_input_position.text())
         self.stage.set_zero_pos_by_position(position)
+        self.current_t0.setText(
+            f'{StandaStage.stage_pos_to_mm(self.stage.zero_pos)}.02')
         self.new_t_0_input_position.clear()
 
     def do_set_stage_position(self):
         position = float(self.set_stage_pos_input.text())
+        self.current_t0.setText(
+            f'{StandaStage.stage_pos_to_mm(self.stage.zero_pos)}.02')
         self.stage.move_to_mm(position)
 
     def do_sweep(self):
