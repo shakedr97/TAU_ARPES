@@ -393,7 +393,7 @@ class Controls(QWidget):
                                    alignment=Qt.AlignmentFlag.AlignHCenter)
 
         # stop sweep button
-        self.stop_sweep = QPushButton('stop sweep')
+        self.stop_sweep = QPushButton('stop')
         self.stop_sweep.clicked.connect(self.do_stop_sweep)
 
         # get specturm button
