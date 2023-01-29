@@ -397,8 +397,8 @@ class Controls(QWidget):
         self.stop_sweep.clicked.connect(self.do_stop_sweep)
 
         # get specturm button
-        self.aqcuire = QPushButton("get spectrum")
-        self.aqcuire.clicked.connect(self.scan_spectrum)
+        self.acquire = QPushButton("get spectrum")
+        self.acquire.clicked.connect(self.scan_spectrum)
 
         # sweep configuration
         self.configuration = QVBoxLayout()
@@ -483,7 +483,7 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.set_t_0_position)
         self.controls_layout.addLayout(self.set_stage_pos)
         self.controls_layout.addLayout(self.start_sweep)
-        self.controls_layout.addWidget(self.aqcuire)
+        self.controls_layout.addWidget(self.acquire)
         self.controls_layout.addWidget(self.stop_sweep)
         self.controls_layout.addLayout(self.configuration)
 
