@@ -1,17 +1,19 @@
 import peak
 
+
 class DA30:
 
     def __init__(self):
         self.manager = peak.ManagerClient(f'http://localhost:8080/api')
         self.manager.connect()
         self.manager_status = self.manager.get_state()
-        
-        analyser = peak.WebsocketPeakClient(self.manager.server_address('Analyser'))
+
+        analyser = peak.WebsocketPeakClient(
+            self.manager.server_address('Analyser'))
         analyser.connect()
         self.analyser = peak.AnalyserMeasurementController(analyser)
         self._is_measuring = False
-    
+
     def do_measurement(self, kinetic_energy=1.75, dwell_time=1.0):
         seq_loq_id = 'test'
         acq_log_id = 'test'
@@ -19,16 +21,16 @@ class DA30:
 
         configuration_name = self.analyser.configuration_name
         spectrum_definition = {
-                        'ElementSetName': configuration_name,
-                        'Name': 'DA30_Test',
-                        'LensModeName': 'DA30L_01',
-                        'PassEnergy': 10,
-                        'FixedAxes': {'X': {'Center': kinetic_energy}},
-                        'AcquisitionMode' : 'Image', 
-                        'DwellTime' : dwell_time,
-                        'StoreSpectrum': False,
-                        'StoreAcquisitionData': False,
-                        }    
+            'ElementSetName': configuration_name,
+            'Name': 'DA30_Test',
+            'LensModeName': 'DA30L_01',
+            'PassEnergy': 10,
+            'FixedAxes': {'X': {'Center': kinetic_energy}},
+            'AcquisitionMode': 'Image',
+            'DwellTime': dwell_time,
+            'StoreSpectrum': False,
+            'StoreAcquisitionData': False,
+        }
 
         self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
         self.analyser.setup_spectrum(self.spectrum_id)
@@ -37,29 +39,29 @@ class DA30:
         self.analyser.finish_spectrum(self.spectrum_id)
         self.analyser.finish_measurement()
         return spectrum
-    
-    def start_measurement(self, kinetic_energy=1.75, dwell_time=1.0):
+
+    def start_measurement(self, kinetic_energy=1.75, dwell_time=1.0, pass_energy=10):
         seq_loq_id = 'test'
         acq_log_id = 'test'
         self.analyser.start_measurement(seq_loq_id, acq_log_id)
 
         configuration_name = self.analyser.configuration_name
         spectrum_definition = {
-                        'ElementSetName': configuration_name,
-                        'Name': 'DA30_Test',
-                        'LensModeName': 'DA30L_01',
-                        'PassEnergy': 10,
-                        'FixedAxes': {'X': {'Center': kinetic_energy}},
-                        'AcquisitionMode' : 'Image', 
-                        'DwellTime' : dwell_time,
-                        'StoreSpectrum': False,
-                        'StoreAcquisitionData': False,
-                        }    
+            'ElementSetName': configuration_name,
+            'Name': 'DA30_Test',
+            'LensModeName': 'DA30L_01',
+            'PassEnergy': pass_energy,
+            'FixedAxes': {'X': {'Center': kinetic_energy}},
+            'AcquisitionMode': 'Image',
+            'DwellTime': dwell_time,
+            'StoreSpectrum': False,
+            'StoreAcquisitionData': False,
+        }
 
         self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
         self.analyser.setup_spectrum(self.spectrum_id)
         self._is_measuring = True
-    
+
     def take_measurement(self):
         self.analyser.acquire(self.spectrum_id)
         spectrum = self.analyser.get_measured_spectrum(self.spectrum_id)
@@ -73,12 +75,13 @@ class DA30:
         except Exception as e:
             print(e)
 
+
 test = 'data'
 
 if __name__ == '__main__':
     if test == 'analyser':
         host = peak.host_address()
-        print (host)
+        print(host)
         manager = peak.ManagerClient(f'http://{host}:8080/api')
         manager.connect()
         state = manager.get_state()
@@ -98,16 +101,16 @@ if __name__ == '__main__':
 
         configuration_name = analyser.configuration_name
         spectrum_definition = {
-                        'ElementSetName': configuration_name,
-                        'Name': 'DA30_Test',
-                        'LensModeName': 'DA30_01',
-                        'PassEnergy': 10,
-                        'FixedAxes': {'X': {'Center': 50.0}, 'Z' : {'Center': 5.0}},
-                        'AcquisitionMode' : 'Image', 
-                        'DwellTime' : 1.0, 
-                        'StoreSpectrum': False,
-                        'StoreAcquisitionData': False,
-                        }    
+            'ElementSetName': configuration_name,
+            'Name': 'DA30_Test',
+            'LensModeName': 'DA30_01',
+            'PassEnergy': 10,
+            'FixedAxes': {'X': {'Center': 50.0}, 'Z': {'Center': 5.0}},
+            'AcquisitionMode': 'Image',
+            'DwellTime': 1.0,
+            'StoreSpectrum': False,
+            'StoreAcquisitionData': False,
+        }
 
         spectrum_id = analyser.define_spectrum(spectrum_definition)
         analyser.setup_spectrum(spectrum_id)

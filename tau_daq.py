@@ -135,12 +135,13 @@ class AnalyserWorker(QRunnable):
             ) != "" and self.controls.DT_input != "":
                 KE = float(self.controls.KE_input.text())
                 DT = float(self.controls.DT_input.text())
-                self.controls.analyser.start_measurement(KE, DT)
+                PE = int(self.controls.PE_input.text())
+                self.controls.analyser.start_measurement(KE, DT, PE)
             else:
                 print(
-                    'did not receive kinetic energy input and dwelling time input, defaulting to 1.75eV and 1.0s'
+                    'did not receive all params kinetic energy (float), dwell time (float), pass energy (int), no starting measurement'
                 )
-                self.controls.analyser.start_measurement()
+                return
             while not self.controls.stop:
                 self.controls.spectrum.axes.cla()
                 spectrum = self.controls.analyser.take_measurement()
@@ -410,6 +411,13 @@ class Controls(QWidget):
         self.kinetic_energy.addWidget(self.KE_label)
         self.kinetic_energy.addWidget(self.KE_input)
 
+        # pass energy
+        self.pass_energy = QHBoxLayout()
+        self.PE_label = QLabel('pass energy (a.u)')
+        self.PE_input = QLineEdit('10')
+        self.pass_energy.addWidget(self.PE_label)
+        self.pass_energy.addWidget(self.PE_input)
+
         # dwell time
         self.dwell_time = QHBoxLayout()
         self.DT_label = QLabel('dwell time (s)')
@@ -441,6 +449,7 @@ class Controls(QWidget):
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
         self.configuration.addLayout(self.dwell_time)
+        self.configuration.addLayout(self.pass_energy)
         self.configuration.addLayout(self.points)
         self.configuration.addLayout(self.save_interval)
         self.configuration.addLayout(self.current_sweep)
