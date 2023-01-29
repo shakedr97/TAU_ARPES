@@ -116,8 +116,8 @@ class PointsSlider(QSlider):
 
 
 class AnalyserMission(enum.Enum):
-    GET_SPECTRUM = 1
-    SWEEP = 2
+    Aqcuire = 1
+    Sweep = 2
 
 
 class AnalyserWorker(QRunnable):
@@ -130,7 +130,7 @@ class AnalyserWorker(QRunnable):
 
     @pyqtSlot()
     def run(self):
-        if self.mission == AnalyserMission.GET_SPECTRUM:
+        if self.mission == AnalyserMission.Aqcuire:
             if self.controls.KE_input.text(
             ) != "" and self.controls.DT_input != "":
                 KE = float(self.controls.KE_input.text())
@@ -147,7 +147,7 @@ class AnalyserWorker(QRunnable):
                 spectrum.show_plane(self.controls.spectrum.axes)
                 self.controls.spectrum.draw()
             self.controls.analyser.stop_measurement()
-        elif self.mission == AnalyserMission.SWEEP:
+        elif self.mission == AnalyserMission.Sweep:
             if self.controls.KE_input.text(
             ) == "" or self.controls.DT_input.text() == "":
                 print(
@@ -397,8 +397,8 @@ class Controls(QWidget):
         self.stop_sweep.clicked.connect(self.do_stop_sweep)
 
         # get specturm button
-        self.get_spectrum = QPushButton("get spectrum")
-        self.get_spectrum.clicked.connect(self.scan_spectrum)
+        self.aqcuire = QPushButton("get spectrum")
+        self.aqcuire.clicked.connect(self.scan_spectrum)
 
         # sweep configuration
         self.configuration = QVBoxLayout()
@@ -484,7 +484,7 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.set_stage_pos)
         self.controls_layout.addLayout(self.start_sweep)
         self.controls_layout.addWidget(self.stop_sweep)
-        self.controls_layout.addWidget(self.get_spectrum)
+        self.controls_layout.addWidget(self.aqcuire)
         self.controls_layout.addLayout(self.configuration)
 
         self.setLayout(self.controls_layout)
@@ -516,7 +516,7 @@ class Controls(QWidget):
         self.stage.move_to_mm(position)
 
     def do_sweep(self):
-        worker = AnalyserWorker(self, AnalyserMission.SWEEP, self.gui)
+        worker = AnalyserWorker(self, AnalyserMission.Sweep, self.gui)
         self.stop = False
         self.threadpool.start(worker)
 
@@ -532,7 +532,7 @@ class Controls(QWidget):
         return points
 
     def scan_spectrum(self):
-        worker = AnalyserWorker(self, AnalyserMission.GET_SPECTRUM, self.gui)
+        worker = AnalyserWorker(self, AnalyserMission.Aqcuire, self.gui)
         self.stop = False
         self.threadpool.start(worker)
 
