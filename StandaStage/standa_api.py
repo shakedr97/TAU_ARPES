@@ -6,7 +6,7 @@ sys.path.append(os.path.join(cur_dir, 'ximc'))
 os.add_dll_directory(dll_path)
 
 from ctypes import *
-import sweep_config
+import StandaStage.sweep_config
 import time
 try:
     from StandaStage.ximc.pyximc import get_position_t

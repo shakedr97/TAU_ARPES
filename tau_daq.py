@@ -137,7 +137,7 @@ class AnalyserWorker(QRunnable):
                 print(e)
                 return
             self.controls.sweep_indicator.setPoints(points)
-            self.controls.sweep_data = SweepData({point : 0.0 for point in points}) # FIXME: move sweep data out of controls
+            self.controls.sweep_data = None # FIXME: move sweep data out of controls
             self.controls.analyser.start_measurement(KE, DT)
             count = 0
             try:
@@ -153,16 +153,18 @@ class AnalyserWorker(QRunnable):
                         QApplication.processEvents()
                         self.controls.stage.go_to_time_fs(point)
                         spectrum = self.controls.analyser.take_measurement()
+                        if not self.controls.sweep_data:
+                            self.controls.sweep_data = SweepData(spectrum.xaxis, spectrum.yaxis)
+                        if count > 1:
+                            self.controls.sweep_data.sweep[point] = (self.controls.sweep_data.sweep[point] * (count - 1) + spectrum.raw_count_data) / count
+                        else:
+                            self.controls.sweep_data.sweep[point] = spectrum.raw_count_data
                         self.controls.spectrum.axes.cla()
-                        spectrum.show_plane(self.controls.spectrum.axes)
+                        self.controls.sweep_data.show_spectrum(self.controls.spectrum.axes, point)
                         self.controls.spectrum.draw()
-                        counts_sum = sum(sum(spectrum.raw_count_data))
-                        print(counts_sum)
-                        print(f'calculating point {count} - point = ({self.controls.sweep_data.sweep[point]} * {count -1} + {counts_sum}) / {count}')
-                        self.controls.sweep_data.sweep[point] = (self.controls.sweep_data.sweep[point] * (count - 1) + counts_sum) / count
                         self.controls.sweep_canvas.axes.cla()
                         time = [point for point in self.controls.sweep_data.sweep]
-                        counts = [self.controls.sweep_data.sweep[point] for point in self.controls.sweep_data.sweep]
+                        counts = [sum(sum(self.controls.sweep_data.sweep[point])) for point in self.controls.sweep_data.sweep]
                         self.controls.sweep_canvas.axes.plot(time, counts, marker='o')
                         self.controls.sweep_canvas.draw()
                     points.reverse()
@@ -171,8 +173,30 @@ class AnalyserWorker(QRunnable):
                 self.controls.analyser.stop_measurement()
 
 class SweepData:
-    def __init__(self, sweep):
-        self.sweep = sweep
+    def __init__(self, xaxis, yaxis):
+        self.xaxis = xaxis
+        self.yaxis = yaxis
+        self.sweep = {}
+
+    def show_spectrum(self, view, point):
+        x_axis = self.xaxis
+        y_axis = self.yaxis
+
+        plane = self.sweep[point]
+
+        x_min = x_axis["Offset"]
+        x_max = x_min + x_axis["Delta"] * (x_axis["Count"] - 1)
+        y_min = y_axis["Offset"]
+        y_max = y_min + y_axis["Delta"] * (y_axis["Count"] - 1)
+        view.imshow(
+            plane,
+            interpolation="nearest",
+            extent=[x_min, x_max, y_min, y_max],
+            aspect="auto",
+            origin="lower",
+        )
+        view.set_xlabel(x_axis["Label"] + " [" + x_axis["Unit"] + "]")
+        view.set_ylabel(y_axis["Label"] + " [" + y_axis["Unit"] + "]")
 
     def export(self, file_name, column_delimiter = '\t', row_delimiter='\n'):
         with open(file_name, 'w') as f:
@@ -183,11 +207,12 @@ class SweepData:
     def export_igor_text(self, file_name, column_delimiter = '\t', row_delimiter='\n'):
         with open(file_name, 'w') as f:
             f.write(f'IGOR{row_delimiter}')
-            f.write(f'WAVES/D/N=({len(self.sweep)}, {len(self.sweep)}) wave0{row_delimiter}') # FIXME: proper wave dimensions for arbitrary data
+            f.write(f'WAVES/D/N=({len(self.sweep)}, 2) wave0{row_delimiter}') # FIXME: proper wave dimensions for arbitrary data
             f.write(f'BEGIN{row_delimiter}')
             for point in self.sweep:
                 f.write(f'{column_delimiter}{point}{column_delimiter}{self.sweep[point]}{row_delimiter}')
             f.write('END')
+    
 
 class ExportWorker(QRunnable):
     def __init__(self, data, gui):
