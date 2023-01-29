@@ -4,10 +4,10 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 import enum
 import PEAK.DA30 as DA30
-from PyQt6.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
-from PyQt6.QtCore import Qt as Qt
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QSlider
-from PyQt6.QtGui import QPixmap
+from PyQt5.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
+from PyQt5.QtCore import Qt as Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QSlider
+from PyQt5.QtGui import QPixmap
 import matplotlib as plt
 
 plt.use('Qt5Agg')
@@ -246,11 +246,14 @@ class SweepData:
 
     def export_raw(self, file_name, column_delimiter='\t', row_delimiter='\n'):
         with open(f'exports\\{file_name}', 'w') as f:
-            f.write(f'time{column_delimiter}counts{row_delimiter}')
             for point in self.sweep:
-                f.write(
-                    f'{point}{column_delimiter}{sum(sum(self.sweep[point]))}{row_delimiter}'
-                )
+                for row in self.sweep[point]:
+                    line = column_delimiter
+                    for element in row:
+                        line += f'{element:.4}{column_delimiter}'
+                    line += row_delimiter
+                    f.write(line)
+                f.write(row_delimiter)
 
     def export_igor_text(self,
                          file_name,
@@ -270,19 +273,30 @@ class SweepData:
 
 class ExportWorker(QRunnable):
 
-    def __init__(self, data, gui):
+    def __init__(self, data, gui, is_export_raw):
         QRunnable.__init__(self)
         self.export_data: SweepData = data
         self.gui: DaqWindow = gui
+        self.is_export_raw = is_export_raw
 
     @pyqtSlot()
     def run(self):
         try:
-            self.gui.export_sweep_indicator.set_ongoing()
-            self.export_data.export(self.gui.export_sweep_name_input.text())
-            self.gui.export_sweep_indicator.set_blank()
+            if self.is_export_raw:
+                self.gui.export_spectrum_indicator.set_ongoing()
+                self.export_data.export_raw(
+                    self.gui.export_spectrum_name_input.text())
+                self.gui.export_spectrum_indicator.set_blank()
+            else:
+                self.gui.export_sweep_indicator.set_ongoing()
+                self.export_data.export(
+                    self.gui.export_sweep_name_input.text())
+                self.gui.export_sweep_indicator.set_blank()
         except Exception as e:
-            self.gui.export_sweep_indicator.set_fail()
+            if self.is_export_raw:
+                self.gui.export_spectrum_indicator.set_fail()
+            else:
+                self.gui.export_sweep_indicator.set_fail()
             print(repr(e))
 
 
@@ -479,7 +493,22 @@ class DaqWindow(QMainWindow):
         self.layout = QHBoxLayout()
         self.results = QVBoxLayout()
         # spectrum
+        self.spectrum_layout = QVBoxLayout()
         self.spectrum = SpectrumCanvas()
+        self.export_spectrum_controls = QHBoxLayout()
+        self.export_spectrum_name_label = QLabel('file name')
+        self.export_spectrum_name_input = QLineEdit('spectrum_data.txt')
+        self.export_spectrum_button = QPushButton('export spectrum data')
+        self.export_spectrum_button.clicked.connect(self.do_export_spectrum)
+        self.export_spectrum_indicator = Indicator()
+        self.export_spectrum_controls.addWidget(
+            self.export_spectrum_name_label)
+        self.export_spectrum_controls.addWidget(
+            self.export_spectrum_name_input)
+        self.export_spectrum_controls.addWidget(self.export_spectrum_button)
+        self.export_spectrum_controls.addWidget(self.export_spectrum_indicator)
+        self.spectrum_layout.addWidget(self.spectrum)
+        self.spectrum_layout.addLayout(self.export_spectrum_controls)
 
         # sweep
         self.sweep_layout = QVBoxLayout()
@@ -497,7 +526,7 @@ class DaqWindow(QMainWindow):
         self.sweep_layout.addWidget(self.sweep_canvas)
         self.sweep_layout.addLayout(self.export_sweep_controls)
 
-        self.results.addWidget(self.spectrum)
+        self.results.addLayout(self.spectrum_layout)
         self.results.addLayout(self.sweep_layout)
 
         self.controls = Controls(self.spectrum, self.sweep_canvas,
@@ -512,7 +541,13 @@ class DaqWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def do_export_sweep(self):
-        worker = ExportWorker(self.controls.sweep_data, self)
+        worker = ExportWorker(self.controls.sweep_data,
+                              self, is_export_raw=False)
+        self.threadpool.start(worker)
+
+    def do_export_spectrum(self):
+        worker = ExportWorker(self.controls.sweep_data,
+                              self, is_export_raw=True)
         self.threadpool.start(worker)
 
 
