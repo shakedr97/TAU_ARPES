@@ -61,6 +61,8 @@ class ConnectStage(QRunnable):
             self.controls.connect_stage_indicator.set_ongoing()
             device_id = Standa.find_device()
             self.controls.stage = StandaStage(device_id)
+            self.controls.current_t_0_value.setText('{:10.4f}'.format(
+                StandaStage.stage_pos_to_mm(self.controls.stage.zero_pos)))
             self.controls.connect_stage_indicator.set_check()
         except Exception as e:
             self.controls.connect_stage_indicator.set_fail()
@@ -406,7 +408,7 @@ class Controls(QWidget):
         # kinetic energy
         self.kinetic_energy = QHBoxLayout()
         self.KE_label = QLabel('kinetic energy (eV)')
-        self.KE_input = QLineEdit('1.5')
+        self.KE_input = QLineEdit('10')
         self.kinetic_energy.addWidget(self.KE_label)
         self.kinetic_energy.addWidget(self.KE_input)
 
@@ -455,6 +457,16 @@ class Controls(QWidget):
         self.set_stage_pos.addWidget(self.set_stage_pos_input)
         self.set_stage_pos.addWidget(self.set_stage_pos_button)
 
+        # current t0
+        TEXT_SIZE = 15
+        self.current_t_0 = QHBoxLayout()
+        self.current_t_0_label = QLabel('current t0 position')
+        self.current_t_0_label.setFixedHeight(TEXT_SIZE)
+        self.current_t_0_value = QLabel('')
+        self.current_t_0_value.setFixedHeight(TEXT_SIZE)
+        self.current_t_0.addWidget(self.current_t_0_label)
+        self.current_t_0.addWidget(self.current_t_0_value)
+
         # setting new t0
         self.set_t_0 = QHBoxLayout()
         self.new_t_0_label = QLabel('new t0 in fs')
@@ -479,6 +491,7 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.connect_analyser)
         self.controls_layout.addLayout(self.connect_stage)
         self.controls_layout.addLayout(self.stage_position)
+        self.controls_layout.addLayout(self.current_t_0)
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addLayout(self.set_t_0_position)
         self.controls_layout.addLayout(self.set_stage_pos)
@@ -504,11 +517,15 @@ class Controls(QWidget):
     def set_new_t_0_value(self):
         t_0 = int(self.new_t_0_input.text())
         self.stage.set_zero_pos_by_time(t_0)
+        self.current_t_0_value.setText('{:10.4f}'.format(
+            StandaStage.stage_pos_to_mm(self.stage.zero_pos)))
         self.new_t_0_input.clear()
 
     def set_new_t_0_value_position(self):
         position = float(self.new_t_0_input_position.text())
         self.stage.set_zero_pos_by_position(position)
+        self.current_t_0_value.setText('{:10.4f}'.format(
+            StandaStage.stage_pos_to_mm(self.stage.zero_pos)))
         self.new_t_0_input_position.clear()
 
     def do_set_stage_position(self):
