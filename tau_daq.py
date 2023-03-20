@@ -14,6 +14,7 @@ plt.use('Qt5Agg')
 
 window_height = 900
 window_width = 1500
+TEXT_SIZE = 15
 
 
 class SpectrumCanvas(FigureCanvasQTAgg):
@@ -61,6 +62,10 @@ class ConnectStage(QRunnable):
             self.controls.connect_stage_indicator.set_ongoing()
             device_id = Standa.find_device()
             self.controls.stage = StandaStage(device_id)
+            self.controls.current_t_0_value.setText('{:10.4f}'.format(
+                StandaStage.stage_pos_to_mm(self.controls.stage.zero_pos)))
+            self.controls.stage_position_value.setText(
+                '{:10.4f}'.format(self.controls.stage.get_pos_mm()))
             self.controls.connect_stage_indicator.set_check()
         except Exception as e:
             self.controls.connect_stage_indicator.set_fail()
@@ -371,14 +376,14 @@ class Controls(QWidget):
         self.connect_stage.addWidget(self.connect_stage_button)
         self.connect_stage.addWidget(self.connect_stage_indicator)
 
-        # get stage position button
+        # stage position
         self.stage_position = QHBoxLayout()
-        self.stage_position_button = QPushButton("get stage position")
-        self.stage_position_button.clicked.connect(self.get_stage_position)
-        self.stage_position_output = QLabel()
-        self.stage_position_output.setMaximumSize(QSize(100, 10))
-        self.stage_position.addWidget(self.stage_position_button)
-        self.stage_position.addWidget(self.stage_position_output)
+        self.stage_position_label = QLabel("stage position mm")
+        self.stage_position_label.setFixedHeight(TEXT_SIZE)
+        self.stage_position_value = QLabel()
+        self.stage_position_value.setFixedHeight(TEXT_SIZE)
+        self.stage_position.addWidget(self.stage_position_label)
+        self.stage_position.addWidget(self.stage_position_value)
 
         # start sweep button
         self.start_sweep = QVBoxLayout()
@@ -406,7 +411,7 @@ class Controls(QWidget):
         # kinetic energy
         self.kinetic_energy = QHBoxLayout()
         self.KE_label = QLabel('kinetic energy (eV)')
-        self.KE_input = QLineEdit('1.5')
+        self.KE_input = QLineEdit('10')
         self.kinetic_energy.addWidget(self.KE_label)
         self.kinetic_energy.addWidget(self.KE_input)
 
@@ -455,6 +460,26 @@ class Controls(QWidget):
         self.set_stage_pos.addWidget(self.set_stage_pos_input)
         self.set_stage_pos.addWidget(self.set_stage_pos_button)
 
+        # stage go to in fs
+        self.set_stage_pos_fs = QHBoxLayout()
+        self.set_stage_pos_fs_label = QLabel('stage go to in fs')
+        self.set_stage_pos_fs_input = QLineEdit()
+        self.set_stage_pos_fs_button = QPushButton('Ok')
+        self.set_stage_pos_fs_button.clicked.connect(
+            self.do_set_stage_position_fs)
+        self.set_stage_pos_fs.addWidget(self.set_stage_pos_fs_label)
+        self.set_stage_pos_fs.addWidget(self.set_stage_pos_fs_input)
+        self.set_stage_pos_fs.addWidget(self.set_stage_pos_fs_button)
+
+        # current t0
+        self.current_t_0 = QHBoxLayout()
+        self.current_t_0_label = QLabel('current t0 position')
+        self.current_t_0_label.setFixedHeight(TEXT_SIZE)
+        self.current_t_0_value = QLabel('')
+        self.current_t_0_value.setFixedHeight(TEXT_SIZE)
+        self.current_t_0.addWidget(self.current_t_0_label)
+        self.current_t_0.addWidget(self.current_t_0_value)
+
         # setting new t0
         self.set_t_0 = QHBoxLayout()
         self.new_t_0_label = QLabel('new t0 in fs')
@@ -479,9 +504,11 @@ class Controls(QWidget):
         self.controls_layout.addLayout(self.connect_analyser)
         self.controls_layout.addLayout(self.connect_stage)
         self.controls_layout.addLayout(self.stage_position)
+        self.controls_layout.addLayout(self.current_t_0)
         self.controls_layout.addLayout(self.set_t_0)
         self.controls_layout.addLayout(self.set_t_0_position)
         self.controls_layout.addLayout(self.set_stage_pos)
+        self.controls_layout.addLayout(self.set_stage_pos_fs)
         self.controls_layout.addLayout(self.start_sweep)
         self.controls_layout.addWidget(self.acquire)
         self.controls_layout.addWidget(self.stop_sweep)
@@ -497,23 +524,33 @@ class Controls(QWidget):
         worker = ConnectStage(self)
         self.threadpool.start(worker)
 
-    def get_stage_position(self):
-        self.stage_position_output.setText('{:10.4f}'.format(
-            self.stage.get_pos_mm()))
-
     def set_new_t_0_value(self):
         t_0 = int(self.new_t_0_input.text())
         self.stage.set_zero_pos_by_time(t_0)
+        self.current_t_0_value.setText('{:10.4f}'.format(
+            StandaStage.stage_pos_to_mm(self.stage.zero_pos)))
         self.new_t_0_input.clear()
 
     def set_new_t_0_value_position(self):
         position = float(self.new_t_0_input_position.text())
         self.stage.set_zero_pos_by_position(position)
+        self.current_t_0_value.setText('{:10.4f}'.format(
+            StandaStage.stage_pos_to_mm(self.stage.zero_pos)))
         self.new_t_0_input_position.clear()
 
     def do_set_stage_position(self):
         position = float(self.set_stage_pos_input.text())
         self.stage.move_to_mm(position)
+        self.stage.wait_to_stop()
+        self.stage_position_value.setText(
+            '{:10.4f}'.format(self.stage.get_pos_mm()))
+
+    def do_set_stage_position_fs(self):
+        time = int(self.set_stage_pos_fs_input.text())
+        self.stage.go_to_time_fs(time)
+        self.stage.wait_to_stop()
+        self.stage_position_value.setText(
+            '{:10.4f}'.format(self.stage.get_pos_mm()))
 
     def do_sweep(self):
         worker = AnalyserWorker(self, AnalyserMission.Sweep, self.gui)
