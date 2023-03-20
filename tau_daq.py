@@ -6,7 +6,7 @@ import enum
 import PEAK.DA30 as DA30
 from PyQt5.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
 from PyQt5.QtCore import Qt as Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QSlider, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QSlider, QComboBox
 from PyQt5.QtGui import QPixmap
 import matplotlib as plt
 
@@ -140,12 +140,13 @@ class AnalyserWorker(QRunnable):
             ) != "" and self.controls.DT_input != "":
                 KE = float(self.controls.KE_input.text())
                 DT = float(self.controls.DT_input.text())
-                self.controls.analyser.start_measurement(KE, DT)
+                PE = int(self.controls.PE_input.text())
+                self.controls.analyser.start_measurement(KE, DT, PE)
             else:
                 print(
-                    'did not receive kinetic energy input and dwelling time input, defaulting to 1.75eV and 1.0s'
+                    'did not receive all params kinetic energy (float), dwell time (float), pass energy (int), no starting measurement'
                 )
-                self.controls.analyser.start_measurement()
+                return
             while not self.controls.stop:
                 self.controls.spectrum.axes.cla()
                 spectrum = self.controls.analyser.take_measurement()
@@ -402,7 +403,7 @@ class Controls(QWidget):
         self.stop_sweep.clicked.connect(self.do_stop_sweep)
 
         # get specturm button
-        self.acquire = QPushButton("get spectrum")
+        self.acquire = QPushButton("acquire")
         self.acquire.clicked.connect(self.scan_spectrum)
 
         # sweep configuration
@@ -414,6 +415,13 @@ class Controls(QWidget):
         self.KE_input = QLineEdit('10')
         self.kinetic_energy.addWidget(self.KE_label)
         self.kinetic_energy.addWidget(self.KE_input)
+
+        # pass energy
+        self.pass_energy = QHBoxLayout()
+        self.PE_label = QLabel('pass energy (a.u)')
+        self.PE_input = QLineEdit('10')
+        self.pass_energy.addWidget(self.PE_label)
+        self.pass_energy.addWidget(self.PE_input)
 
         # dwell time
         self.dwell_time = QHBoxLayout()
@@ -446,6 +454,7 @@ class Controls(QWidget):
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
         self.configuration.addLayout(self.dwell_time)
+        self.configuration.addLayout(self.pass_energy)
         self.configuration.addLayout(self.points)
         self.configuration.addLayout(self.save_interval)
         self.configuration.addLayout(self.current_sweep)
@@ -489,6 +498,15 @@ class Controls(QWidget):
         self.set_t_0.addWidget(self.new_t_0_label)
         self.set_t_0.addWidget(self.new_t_0_input)
         self.set_t_0.addWidget(self.set_new_t_0)
+
+        # current t0
+        self.current_t0_display = QGridLayout()
+        self.current_t0_label = QLabel('current t0')
+        self.current_t0 = QLineEdit()
+        self.current_t0_display.addWidget(
+            self.current_t0, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        self.current_t0_display.addWidget(
+            self.current_t0_label, 0, 0, Qt.AlignmentFlag.AlignCenter)
 
         # setting new t0 position
         self.set_t_0_position = QHBoxLayout()
@@ -540,6 +558,8 @@ class Controls(QWidget):
 
     def do_set_stage_position(self):
         position = float(self.set_stage_pos_input.text())
+        self.current_t0.setText(
+            f'{StandaStage.stage_pos_to_mm(self.stage.zero_pos)}.02')
         self.stage.move_to_mm(position)
         self.stage.wait_to_stop()
         self.stage_position_value.setText(
