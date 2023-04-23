@@ -156,7 +156,7 @@ class AnalyserWorker(QRunnable):
                 self.controls.spectrum.draw()
             self.controls.analyser.stop_measurement()
         elif self.mission == AnalyserMission.Sweep:
-            export_dir = create_export_directory()
+            export_dir = self.create_export_directory()
             if self.controls.KE_input.text(
             ) == "" or self.controls.DT_input.text() == "":
                 print(
@@ -179,8 +179,6 @@ class AnalyserWorker(QRunnable):
                 while not self.controls.stop:
                     count += 1
                     self.controls.current_sweep_value.setText(f'{count}')
-                    if count % int(self.controls.save_interval_input.text()) == 0:
-                        self.gui.do_export_spectrum(export_dir)
                     for point in points:
                         self.controls.sweep_indicator.setPosition(point)
                         self.controls.sweep_point_indicator.setText(str(point))
@@ -191,10 +189,11 @@ class AnalyserWorker(QRunnable):
                         QApplication.processEvents()
                         self.controls.stage.go_to_time_fs(point)
                         spectrum = self.controls.analyser.take_measurement()
-                        self.controls.sweep_data.add_sweep_data(spectrum, point)
                         if not self.controls.sweep_data:
                             self.controls.sweep_data = SweepData(
                                 spectrum.xaxis, spectrum.yaxis)
+                        self.controls.sweep_data.add_sweep_data(
+                            spectrum, point)
                         if count > 1:
                             self.controls.sweep_data.sweep[point] = (
                                 self.controls.sweep_data.sweep[point] * (count - 1) + spectrum.raw_count_data) / count
@@ -217,39 +216,42 @@ class AnalyserWorker(QRunnable):
                                                              counts,
                                                              marker='o')
                         self.controls.sweep_canvas.draw()
+                    if count % int(self.controls.save_interval_input.text()) == 0:
+                        self.gui.do_export_spectrum(export_dir)
                     points.reverse()
+                self.controls.analyser.stop_measurement()
             except Exception as e:
                 print(e)
                 self.controls.analyser.stop_measurement()
-    
-    def create_export_directory():
+
+    def create_export_directory(self):
         file_name = self.gui.export_spectrum_name_input.text()
         num = 0
         dir_name = f'{file_name}_{num}'
         while os.path.exists(dir_name):
-            num +=1
+            num += 1
             dir_name = f'{file_name}_{num}'
         os.mkdir(dir_name)
         return dir_name
 
 
-
 class SweepData:
 
-    def __init__(self, xaxis, yaxis, dir_path):
+    def __init__(self, xaxis, yaxis):
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.sweep = {}
         self.sweep_raw = {}
         self.last_spectrum = None
-        self.dir_path = dir_path
 
-    def add_sweep_data(spectrum, point):
+    def add_sweep_data(self, spectrum, point):
+        print('adding sweep data')
         self.last_spectrum = spectrum
-        if self.sweep_raw.get(point):
-            self.sweep_raw[point] += spectrum.raw_count_data
+        if point in self.sweep_raw:
+            self.sweep_raw[point] = self.sweep_raw[point] + \
+                spectrum.raw_count_data
         else:
-            self.sweep_raw = spectrum.raw_count_data
+            self.sweep_raw[point] = spectrum.raw_count_data
 
     def show_spectrum(self, view, point):
         x_axis = self.xaxis
@@ -332,44 +334,54 @@ class SweepData:
                 f.write(f'{column_delimiter}{point}{row_delimiter}')
             f.write('END')
             f.write(row_delimiter)
-    
+
     def export_xsection_data(self, export_path,
                              column_delimiter='\t',
                              row_delimiter='\n'):
         export_dir = export_path
         file_name = export_path
         name = file_name
-        points = [point for point in self.sweep_raw.keys()].sort()
+        points = [point for point in self.sweep_raw]
+        points.sort()
+        print(points)
+        print(f'num of points - {len(points)}')
         for point in self.sweep_raw:
             num = 0
             num_name = str(num).zfill(3)
             i = points.index(point)
-            point_name = str(i).zfill
+            point_name = str(i).zfill(3)
             file_name = f'{name}_{num_name}_{point_name}'
             while os.path.exists(os.path.join(export_dir, file_name)):
                 num += 1
                 num_name = str(num).zfill(3)
                 file_name = f'{name}_{num_name}_{point_name}'
-
-            with open(os.path.join(export_dir, file_name)) as f:
+            path = os.path.join(export_dir, file_name)
+            print(f'file path - {path}')
+            with open(path, 'w') as f:
+                print('writing to file')
                 f.write(f'[Info]{row_delimiter}')
-                f.write(f'Number of Regions=1{row_delimiter}') # TODO: number of regions > 1?
+                # TODO: number of regions > 1?
+                f.write(f'Number of Regions=1{row_delimiter}')
                 f.write(f'{row_delimiter}')
                 f.write(f'[Region 1]{row_delimiter}')
                 f.write(f'Region Name=trARPES spectrum{row_delimiter}')
-                
+
                 f.write(f'Dimension 1 name=Kinetic Energy [eV]{row_delimiter}')
-                dimension_size = self.last_spectrum.xaxis()["Count"]
+                dimension_size = self.last_spectrum.xaxis["Count"]
                 f.write(f'Dimension 1 size={dimension_size}{row_delimiter}')
-                dimension_1_scale = [str(self.last_spectrum.xaxis()["Minimum"] + self.last_spectrum.xaxis()["Delta"] * n) for n in range(dimension_size)]
-                f.write(f'Dimension 1 scale={column_delimiter.join(dimension_1_scale)}{row_delimiter}')
+                dimension_1_scale = [str(self.last_spectrum.xaxis[
+                                         "Minimum"] + self.last_spectrum.xaxis["Delta"] * n) for n in range(dimension_size)]
+                f.write(
+                    f'Dimension 1 scale={column_delimiter.join(dimension_1_scale)}{row_delimiter}')
                 f.write(f'{row_delimiter}')
-                
+
                 f.write(f'Dimension 2 name=Y-Scale [deg]{row_delimiter}')
-                dimension_size = self.last_spectrum.yaxis()["Count"]
+                dimension_size = self.last_spectrum.yaxis["Count"]
                 f.write(f'Dimension 2 size={dimension_size}{row_delimiter}')
-                dimension_scale = [str(self.last_spectrum.yaxis()["Minimum"] + self.last_spectrum.yaxis()["Delta"] * n) for n in range(dimension_size)]
-                f.write(f'Dimension 2 scale={column_delimiter.join(dimension_scale)}{row_delimiter}')
+                dimension_scale = [str(self.last_spectrum.yaxis[
+                                       "Minimum"] + self.last_spectrum.yaxis["Delta"] * n) for n in range(dimension_size)]
+                f.write(
+                    f'Dimension 2 scale={column_delimiter.join(dimension_scale)}{row_delimiter}')
                 f.write(f'{row_delimiter}')
 
                 f.write(f'Info 1{row_delimiter}')
@@ -383,8 +395,8 @@ class SweepData:
                 f.write(f'[User Interface Information 1]{row_delimiter}')
                 f.write(f'Delay(fs)={point}{row_delimiter}')
                 f.write(f'{row_delimiter}')
-                
-                f.write(f'[Data 1]')
+
+                f.write(f'[Data 1]{row_delimiter}')
                 for row in zip(dimension_1_scale, self.sweep_raw[point]):
                     energy = row[0]
                     counts = row[1]
@@ -392,7 +404,7 @@ class SweepData:
                     line = [energy] + counts
                     line = column_delimiter.join(line)
                     f.write(f'{line}{row_delimiter}')
-        
+
         self.sweep_raw = {}
         # write [Region 1]
         # Region Name=trARPES spectrum
@@ -433,7 +445,7 @@ class ExportWorker(QRunnable):
                 elif self.gui.export_spectrum_format.currentText() == 'itx':
                     self.export_data.export_raw_igor_text(file_name)
                 elif self.gui.export_spectrum_format.currentText() == 'XSection':
-                    self.export_data.export_xsection_data(export_dir)
+                    self.export_data.export_xsection_data(self.export_dir)
                 self.gui.export_spectrum_indicator.set_blank()
             else:
                 file_name = self.gui.export_sweep_name_input.text(
@@ -768,10 +780,11 @@ class DaqWindow(QMainWindow):
 
     def do_export_sweep(self):
         worker = ExportWorker(self.controls.sweep_data,
-                              self, export_dir = None, is_export_raw=False)
+                              self, export_dir=None, is_export_raw=False)
         self.threadpool.start(worker)
 
-    def do_export_spectrum(self, export_dir = None):
+    def do_export_spectrum(self, export_dir=None):
+        print('exporting spectrum')
         worker = ExportWorker(self.controls.sweep_data,
                               self, export_dir=export_dir, is_export_raw=True)
         self.threadpool.start(worker)
