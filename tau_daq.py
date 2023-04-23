@@ -1,4 +1,6 @@
 import sys
+import os
+from datetime import datetime
 from StandaStage.standa_api import StandaStage, Standa
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
@@ -144,7 +146,7 @@ class AnalyserWorker(QRunnable):
                 self.controls.analyser.start_measurement(KE, DT, PE)
             else:
                 print(
-                    'did not receive all params kinetic energy (float), dwell time (float), pass energy (int), no starting measurement'
+                    'did not receive all params kinetic energy (float), dwell time (float), pass energy (int), not starting measurement'
                 )
                 return
             while not self.controls.stop:
@@ -154,6 +156,7 @@ class AnalyserWorker(QRunnable):
                 self.controls.spectrum.draw()
             self.controls.analyser.stop_measurement()
         elif self.mission == AnalyserMission.Sweep:
+            export_dir = create_export_directory()
             if self.controls.KE_input.text(
             ) == "" or self.controls.DT_input.text() == "":
                 print(
@@ -177,7 +180,7 @@ class AnalyserWorker(QRunnable):
                     count += 1
                     self.controls.current_sweep_value.setText(f'{count}')
                     if count % int(self.controls.save_interval_input.text()) == 0:
-                        self.gui.do_export_spectrum()
+                        self.gui.do_export_spectrum(export_dir)
                     for point in points:
                         self.controls.sweep_indicator.setPosition(point)
                         self.controls.sweep_point_indicator.setText(str(point))
@@ -188,6 +191,7 @@ class AnalyserWorker(QRunnable):
                         QApplication.processEvents()
                         self.controls.stage.go_to_time_fs(point)
                         spectrum = self.controls.analyser.take_measurement()
+                        self.controls.sweep_data.add_sweep_data(spectrum, point)
                         if not self.controls.sweep_data:
                             self.controls.sweep_data = SweepData(
                                 spectrum.xaxis, spectrum.yaxis)
@@ -217,14 +221,35 @@ class AnalyserWorker(QRunnable):
             except Exception as e:
                 print(e)
                 self.controls.analyser.stop_measurement()
+    
+    def create_export_directory():
+        file_name = self.gui.export_spectrum_name_input.text()
+        num = 0
+        dir_name = f'{file_name}_{num}'
+        while os.path.exists(dir_name):
+            num +=1
+            dir_name = f'{file_name}_{num}'
+        os.mkdir(dir_name)
+        return dir_name
+
 
 
 class SweepData:
 
-    def __init__(self, xaxis, yaxis):
+    def __init__(self, xaxis, yaxis, dir_path):
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.sweep = {}
+        self.sweep_raw = {}
+        self.last_spectrum = None
+        self.dir_path = dir_path
+
+    def add_sweep_data(spectrum, point):
+        self.last_spectrum = spectrum
+        if self.sweep_raw.get(point):
+            self.sweep_raw[point] += spectrum.raw_count_data
+        else:
+            self.sweep_raw = spectrum.raw_count_data
 
     def show_spectrum(self, view, point):
         x_axis = self.xaxis
@@ -307,15 +332,94 @@ class SweepData:
                 f.write(f'{column_delimiter}{point}{row_delimiter}')
             f.write('END')
             f.write(row_delimiter)
+    
+    def export_xsection_data(self, export_path,
+                             column_delimiter='\t',
+                             row_delimiter='\n'):
+        export_dir = export_path
+        file_name = export_path
+        name = file_name
+        points = [point for point in self.sweep_raw.keys()].sort()
+        for point in self.sweep_raw:
+            num = 0
+            num_name = str(num).zfill(3)
+            i = points.index(point)
+            point_name = str(i).zfill
+            file_name = f'{name}_{num_name}_{point_name}'
+            while os.path.exists(os.path.join(export_dir, file_name)):
+                num += 1
+                num_name = str(num).zfill(3)
+                file_name = f'{name}_{num_name}_{point_name}'
+
+            with open(os.path.join(export_dir, file_name)) as f:
+                f.write(f'[Info]{row_delimiter}')
+                f.write(f'Number of Regions=1{row_delimiter}') # TODO: number of regions > 1?
+                f.write(f'{row_delimiter}')
+                f.write(f'[Region 1]{row_delimiter}')
+                f.write(f'Region Name=trARPES spectrum{row_delimiter}')
+                
+                f.write(f'Dimension 1 name=Kinetic Energy [eV]{row_delimiter}')
+                dimension_size = self.last_spectrum.xaxis()["Count"]
+                f.write(f'Dimension 1 size={dimension_size}{row_delimiter}')
+                dimension_1_scale = [str(self.last_spectrum.xaxis()["Minimum"] + self.last_spectrum.xaxis()["Delta"] * n) for n in range(dimension_size)]
+                f.write(f'Dimension 1 scale={column_delimiter.join(dimension_1_scale)}{row_delimiter}')
+                f.write(f'{row_delimiter}')
+                
+                f.write(f'Dimension 2 name=Y-Scale [deg]{row_delimiter}')
+                dimension_size = self.last_spectrum.yaxis()["Count"]
+                f.write(f'Dimension 2 size={dimension_size}{row_delimiter}')
+                dimension_scale = [str(self.last_spectrum.yaxis()["Minimum"] + self.last_spectrum.yaxis()["Delta"] * n) for n in range(dimension_size)]
+                f.write(f'Dimension 2 scale={column_delimiter.join(dimension_scale)}{row_delimiter}')
+                f.write(f'{row_delimiter}')
+
+                f.write(f'Info 1{row_delimiter}')
+                now = datetime.now()
+                date = now.strftime('%d/%m/%y')
+                f.write(f'Date={date}{row_delimiter}')
+                time = now.strftime('%H:%M:%S')
+                f.write(f'Time={time}{row_delimiter}')
+                f.write(f'{row_delimiter}')
+
+                f.write(f'[User Interface Information 1]{row_delimiter}')
+                f.write(f'Delay(fs)={point}{row_delimiter}')
+                f.write(f'{row_delimiter}')
+                
+                f.write(f'[Data 1]')
+                for row in zip(dimension_1_scale, self.sweep_raw[point]):
+                    energy = row[0]
+                    counts = row[1]
+                    counts = [str(count) for count in counts]
+                    line = [energy] + counts
+                    line = column_delimiter.join(line)
+                    f.write(f'{line}{row_delimiter}')
+        
+        self.sweep_raw = {}
+        # write [Region 1]
+        # Region Name=trARPES spectrum
+
+        # write dimensions: (1 - energy, 2 - analyzer angle)
+        # Dimension x name={name}
+        # Dimension x size={size}
+        # Dimension x scale={dimension valies, seperated with a space}
+        # blank line between dimensions
+
+        # write info
+
+        # write [User Interface Information {num_region}]
+
+        # write [Data {num_region}]
+        # first num is point in dimension 1 axis (energy value), then the different angle count nums, separated by spaces.
+        # each dimension 1 value is in a line of it's own
 
 
 class ExportWorker(QRunnable):
 
-    def __init__(self, data, gui, is_export_raw):
+    def __init__(self, data, gui, export_dir, is_export_raw):
         QRunnable.__init__(self)
         self.export_data: SweepData = data
         self.gui: DaqWindow = gui
         self.is_export_raw = is_export_raw
+        self.export_dir = export_dir
 
     @pyqtSlot()
     def run(self):
@@ -328,6 +432,8 @@ class ExportWorker(QRunnable):
                     self.export_data.export_raw(file_name)
                 elif self.gui.export_spectrum_format.currentText() == 'itx':
                     self.export_data.export_raw_igor_text(file_name)
+                elif self.gui.export_spectrum_format.currentText() == 'XSection':
+                    self.export_data.export_xsection_data(export_dir)
                 self.gui.export_spectrum_indicator.set_blank()
             else:
                 file_name = self.gui.export_sweep_name_input.text(
@@ -613,7 +719,7 @@ class DaqWindow(QMainWindow):
         self.export_spectrum_name_label = QLabel('file name')
         self.export_spectrum_name_input = QLineEdit('spectrum_data')
         self.export_spectrum_format = QComboBox()
-        self.export_spectrum_format.addItems(['itx', 'txt'])
+        self.export_spectrum_format.addItems(['XSection', 'itx', 'txt'])
         self.export_spectrum_button = QPushButton('export spectrum data')
         self.export_spectrum_button.clicked.connect(self.do_export_spectrum)
         self.export_spectrum_indicator = Indicator()
@@ -662,12 +768,12 @@ class DaqWindow(QMainWindow):
 
     def do_export_sweep(self):
         worker = ExportWorker(self.controls.sweep_data,
-                              self, is_export_raw=False)
+                              self, export_dir = None, is_export_raw=False)
         self.threadpool.start(worker)
 
-    def do_export_spectrum(self):
+    def do_export_spectrum(self, export_dir = None):
         worker = ExportWorker(self.controls.sweep_data,
-                              self, is_export_raw=True)
+                              self, export_dir=export_dir, is_export_raw=True)
         self.threadpool.start(worker)
 
 
