@@ -223,7 +223,7 @@ class AnalyserWorker(QRunnable):
             except Exception as e:
                 print(e)
                 self.controls.analyser.stop_measurement()
-    
+
     def create_export_directory(self, points):
         file_name = self.gui.export_spectrum_name_input.text()
         num = 0
@@ -236,14 +236,16 @@ class AnalyserWorker(QRunnable):
         return dir_name
 
     def create_export_file(self, export_dir, points):
-        with open(os.path.join(export_dir, f'{export_dir}.xs')) as f:
+        with open(os.path.join(export_dir, f'{export_dir}.xs'), 'w') as f:
             f.write(f'{len(points)}\n')
             f.write('\n')
-            f.write('Delay mode: Back and forth')
+            f.write('Delay mode: Back and forth\n')
             f.write(f'{str(datetime.now())}\n')
             f.write(f'Delay (fs)\tMultiplier\n')
             for point in points:
-                f.write(f'{point}\t1.000')
+                f.write(f'{point}\t1.000\n')
+        os.mkdir(os.path.join(export_dir, export_dir))
+
 
 class SweepData:
 
@@ -361,11 +363,11 @@ class SweepData:
             i = points.index(point)
             point_name = str(i).zfill(3)
             file_name = f'{name}_{num_name}_{point_name}.txt'
-            while os.path.exists(os.path.join(export_dir, file_name)):
+            while os.path.exists(os.path.join(export_dir, export_dir, file_name)):
                 num += 1
                 num_name = str(num).zfill(3)
                 file_name = f'{name}_{num_name}_{point_name}.txt'
-            path = os.path.join(export_dir, file_name)
+            path = os.path.join(export_dir, export_dir, file_name)
             print(f'file path - {path}')
             with open(path, 'w') as f:
                 print('writing to file')
