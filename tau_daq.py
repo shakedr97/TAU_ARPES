@@ -156,7 +156,6 @@ class AnalyserWorker(QRunnable):
                 self.controls.spectrum.draw()
             self.controls.analyser.stop_measurement()
         elif self.mission == AnalyserMission.Sweep:
-            export_dir = create_export_directory()
             if self.controls.KE_input.text(
             ) == "" or self.controls.DT_input.text() == "":
                 print(
@@ -171,6 +170,7 @@ class AnalyserWorker(QRunnable):
                 print('sweep points entered in a non-valid manner')
                 print(e)
                 return
+            export_dir = self.create_export_directory(points)
             self.controls.sweep_indicator.setPoints(points)
             self.controls.sweep_data = None  # FIXME: move sweep data out of controls
             self.controls.analyser.start_measurement(KE, DT)
@@ -222,7 +222,7 @@ class AnalyserWorker(QRunnable):
                 print(e)
                 self.controls.analyser.stop_measurement()
     
-    def create_export_directory():
+    def create_export_directory(self, points):
         file_name = self.gui.export_spectrum_name_input.text()
         num = 0
         dir_name = f'{file_name}_{num}'
@@ -230,8 +230,18 @@ class AnalyserWorker(QRunnable):
             num +=1
             dir_name = f'{file_name}_{num}'
         os.mkdir(dir_name)
+        self.create_export_file(dir_name, points)
         return dir_name
 
+    def create_export_file(self, export_dir, points):
+        with open(os.path.join(export_dir, f'{export_dir}.xs')) as f:
+            f.write(f'{len(points)}\n')
+            f.write('\n')
+            f.write('Delay mode: Back and forth')
+            f.write(f'{str(datetime.now())}\n')
+            f.write(f'Delay (fs)\tMultiplier\n')
+            for point in points:
+                f.write(f'{point}\t1.000')
 
 
 class SweepData:
@@ -345,11 +355,11 @@ class SweepData:
             num_name = str(num).zfill(3)
             i = points.index(point)
             point_name = str(i).zfill
-            file_name = f'{name}_{num_name}_{point_name}'
+            file_name = f'{name}_{num_name}_{point_name}.txt'
             while os.path.exists(os.path.join(export_dir, file_name)):
                 num += 1
                 num_name = str(num).zfill(3)
-                file_name = f'{name}_{num_name}_{point_name}'
+                file_name = f'{name}_{num_name}_{point_name}.txt'
 
             with open(os.path.join(export_dir, file_name)) as f:
                 f.write(f'[Info]{row_delimiter}')
