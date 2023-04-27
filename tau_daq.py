@@ -11,6 +11,7 @@ from PyQt5.QtCore import Qt as Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QSlider, QComboBox
 from PyQt5.QtGui import QPixmap
 import matplotlib as plt
+import json
 
 plt.use('Qt5Agg')
 
@@ -189,6 +190,7 @@ class AnalyserWorker(QRunnable):
                         QApplication.processEvents()
                         self.controls.stage.go_to_time_fs(point)
                         spectrum = self.controls.analyser.take_measurement()
+                        print(spectrum.props)
                         if not self.controls.sweep_data:
                             self.controls.sweep_data = SweepData(
                                 spectrum.xaxis, spectrum.yaxis)
@@ -381,8 +383,10 @@ class SweepData:
                 f.write(f'Dimension 1 name=Kinetic Energy [eV]{row_delimiter}')
                 dimension_size = self.last_spectrum.xaxis["Count"]
                 f.write(f'Dimension 1 size={dimension_size}{row_delimiter}')
-                dimension_1_scale = [str(self.last_spectrum.xaxis[
-                                         "Minimum"] + self.last_spectrum.xaxis["Delta"] * n) for n in range(dimension_size)]
+                step = round(self.last_spectrum.xaxis["Delta"], 5)
+                start = round(self.last_spectrum.xaxis["Minimum"], 5)
+                dimension_1_scale = [
+                    f'{start + step * n:5f}' for n in range(dimension_size)]
                 f.write(
                     f'Dimension 1 scale={column_delimiter.join(dimension_1_scale)}{row_delimiter}')
                 f.write(f'{row_delimiter}')
@@ -390,8 +394,10 @@ class SweepData:
                 f.write(f'Dimension 2 name=Y-Scale [deg]{row_delimiter}')
                 dimension_size = self.last_spectrum.yaxis["Count"]
                 f.write(f'Dimension 2 size={dimension_size}{row_delimiter}')
-                dimension_scale = [str(self.last_spectrum.yaxis[
-                                       "Minimum"] + self.last_spectrum.yaxis["Delta"] * n) for n in range(dimension_size)]
+                step = round(self.last_spectrum.yaxis["Delta"], 5)
+                start = round(self.last_spectrum.yaxis["Minimum"], 5)
+                dimension_scale = [
+                    f'{start + step * n:.5f}' for n in range(dimension_size)]
                 f.write(
                     f'Dimension 2 scale={column_delimiter.join(dimension_scale)}{row_delimiter}')
                 f.write(f'{row_delimiter}')
@@ -412,7 +418,7 @@ class SweepData:
                 for row in zip(dimension_1_scale, self.sweep_raw[point]):
                     energy = row[0]
                     counts = row[1]
-                    counts = [str(count) for count in counts]
+                    counts = [f'{count:.0f}' for count in counts]
                     line = [energy] + counts
                     line = column_delimiter.join(line)
                     f.write(f'{line}{row_delimiter}')

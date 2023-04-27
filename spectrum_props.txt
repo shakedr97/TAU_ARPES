@@ -1,0 +1,28 @@
+{
+'Name': 'DA30_Test',
+'Description': None,
+'SequenceLogId': 'test',
+'AcquisitionLogId': 'test',
+'SpectrumLogId': '39067105-9097-431b-8ae5-1192c819eab2',
+'SpectrumChannels':
+ {'b5557d25-62a9-4132-a8c8-369b523425a0':
+ {'SpectrumChannelSettings':
+ {'Id':
+ 'b5557d25-62a9-4132-a8c8-369b523425a0',
+ 'Name': 'DA30_Test',
+ 'AxisOrder': ['X', 'Y', 'Z'],
+ 'AcquiredAxes': 
+ {
+ 'X': {'Offset': 9.629706129991918, 'Delta': 0.0007223796127434064, 'Count': 1064, 'Unit': 'eV', 'Label': 'Kinetic Energy', 'Minimum': 9.629344940185547, 'Maximum': 10.397956848144531, 'Center': 10.013650894165039, 'Highest': 10.39759565833816},
+ 'Y': {'Offset': -17.982, 'Delta': 0.036, 'Count': 1000, 'Unit': 'deg', 'Label': 'ThetaX', 'Minimum': -18.0, 'Maximum': 18.0, 'Center': 0.0, 'Highest': 17.982},
+ 'Z': {'Offset': 0.0, 'Delta': 0.0, 'Count': 1, 'Unit': 'deg', 'Label': 'ThetaY', 'Minimum': 0.0, 'Maximum': 0.0, 'Center': 0.0, 'Highest': 0.0}},
+ 'RequestedAxes':
+ {
+ 'X': {'Offset': 9.629706129991918, 'Delta': 0.0007223796127434064, 'Count': 1064, 'Unit': 'eV', 'Label': 'Kinetic Energy', 'Minimum': 9.629344940185547, 'Maximum': 10.397956848144531, 'Center': 10.013650894165039, 'Highest': 10.39759565833816},
+ 'Y': {'Offset': -17.982, 'Delta': 0.036, 'Count': 1000, 'Unit': 'deg', 'Label': 'ThetaX', 'Minimum': -18.0, 'Maximum': 18.0, 'Center': 0.0, 'Highest': 17.982},
+ 'Z': {'Offset': 0.0, 'Delta': 0.0, 'Count': 1, 'Unit': 'deg', 'Label': 'ThetaY', 'Minimum': 0.0, 'Maximum': 0.0, 'Center': 0.0, 'Highest': 0.0}
+ },
+ 'DetectorType': 'Camera',
+ 'DetectorArea': {'LowX': -16.625, 'HighX': 16.625, 'LowY': -15.625, 'HighY': 15.625, 'Width': 33.25, 'Height': 31.25, 'CenterX': 0.0, 'CenterY': 0.0},
+ 'ChannelArea': {'LowX': 0, 'LowY': 0, 'HighX': 1063, 'HighY': 999, 'Width': 1064, 'Height': 1000, 'CenterX': 531, 'CenterY': 499}},
+ 'CountByteData': {'Type': 'Attachment', 'Name': '09cfa1b6-78f9-4a8d-a48f-70e3bf49e396', 'Rev': '78f3f58d-6fea-43cb-bb63-198664a98a0f', 'MediaType': 'application/octet-stream', 'FileEnding': '.bin', 'Mode': 'Http', 'CompressionMode': 'None', 'Address': 'http://127.0.0.1:54112/attachments/7dd05722-af8a-4527-8d20-ee5367500b29.bin', 'Length': 4256000, 'HasValue': True}, 'TimeByteData': None}}, 'SequenceId': 'test', 'AcquisitionTime': 1.0013339999999986, 'Type': 'Spectrum', 'Version': 3, '_id': 'd9e85acc-ceaa-4ad1-8d8e-2db7b0ca252c', 'IsModified': True, 'CreationTime': '2023-04-27T20:23:34.33884+03:00', 'UpdateTime': '2023-04-27T20:23:34.33884+03:00'}
