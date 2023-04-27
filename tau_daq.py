@@ -409,6 +409,7 @@ class SweepData:
                 time = now.strftime('%H:%M:%S')
                 f.write(f'Time={time}{row_delimiter}')
                 f.write(f'{row_delimiter}')
+                first_x_channel =
 
                 f.write(f'[User Interface Information 1]{row_delimiter}')
                 f.write(f'Delay(fs)={point}{row_delimiter}')
