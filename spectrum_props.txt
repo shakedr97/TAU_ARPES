@@ -7,8 +7,8 @@
 'SpectrumChannels':
  {'b5557d25-62a9-4132-a8c8-369b523425a0':
  {'SpectrumChannelSettings':
- {'Id':
- 'b5557d25-62a9-4132-a8c8-369b523425a0',
+ {
+ 'Id':'b5557d25-62a9-4132-a8c8-369b523425a0',
  'Name': 'DA30_Test',
  'AxisOrder': ['X', 'Y', 'Z'],
  'AcquiredAxes': 

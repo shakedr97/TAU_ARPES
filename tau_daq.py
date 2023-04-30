@@ -190,7 +190,6 @@ class AnalyserWorker(QRunnable):
                         QApplication.processEvents()
                         self.controls.stage.go_to_time_fs(point)
                         spectrum = self.controls.analyser.take_measurement()
-                        print(spectrum.props)
                         if not self.controls.sweep_data:
                             self.controls.sweep_data = SweepData(
                                 spectrum.xaxis, spectrum.yaxis)
@@ -350,7 +349,7 @@ class SweepData:
             f.write(row_delimiter)
 
     def export_xsection_data(self, export_path,
-                             column_delimiter='\t',
+                             column_delimiter=' ',
                              row_delimiter='\n'):
         export_dir = export_path
         file_name = export_path
@@ -409,13 +408,34 @@ class SweepData:
                 time = now.strftime('%H:%M:%S')
                 f.write(f'Time={time}{row_delimiter}')
                 f.write(f'{row_delimiter}')
-                first_x_channel =
+                channels = self.last_spectrum.props['SpectrumChannels']
+                print(channels)
+                channel_settings = [
+                    x for x in channels.values()][0]['SpectrumChannelSettings']
+                print(channel_settings)
+                channel_area = channel_settings['ChannelArea']
+                print(channel_area)
+                first_x_channel = channel_area['LowX']
+                last_x_channel = channel_area['HighX']
+                first_y_channel = channel_area['LowY']
+                last_y_channel = channel_area['HighY']
+                f.write(
+                    f'Detector First X-Channel={first_x_channel}{row_delimiter}')
+                f.write(
+                    f'Detector Last X-Channel={last_x_channel}{row_delimiter}')
+                f.write(
+                    f'Detector First Y-Channel={first_y_channel}{row_delimiter}')
+                f.write(
+                    f'Detector Last Y-Channel={last_y_channel}{row_delimiter}')
+                f.write(f'Number of Slices={dimension_size}{row_delimiter}')
+                f.write(f'{row_delimiter}')
 
                 f.write(f'[User Interface Information 1]{row_delimiter}')
                 f.write(f'Delay(fs)={point}{row_delimiter}')
                 f.write(f'{row_delimiter}')
 
                 f.write(f'[Data 1]{row_delimiter}')
+                print(f'sum - {sum(sum(self.sweep_raw[point]))}')
                 for row in zip(dimension_1_scale, self.sweep_raw[point]):
                     energy = row[0]
                     counts = row[1]
@@ -452,7 +472,7 @@ class ExportWorker(QRunnable):
         self.is_export_raw = is_export_raw
         self.export_dir = export_dir
 
-    @pyqtSlot()
+    @ pyqtSlot()
     def run(self):
         try:
             if self.is_export_raw:
