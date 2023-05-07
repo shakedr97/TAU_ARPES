@@ -380,25 +380,25 @@ class SweepData:
                 f.write(f'Region Name=trARPES spectrum{row_delimiter}')
 
                 f.write(f'Dimension 1 name=Kinetic Energy [eV]{row_delimiter}')
-                dimension_size = self.last_spectrum.xaxis["Count"]
-                f.write(f'Dimension 1 size={dimension_size}{row_delimiter}')
-                step = round(self.last_spectrum.xaxis["Delta"], 5)
-                start = round(self.last_spectrum.xaxis["Minimum"], 5)
-                dimension_1_scale = [
-                    f'{start + step * n:5f}' for n in range(dimension_size)]
+                energy_size = self.last_spectrum.xaxis["Count"]
+                f.write(f'Dimension 1 size={energy_size}{row_delimiter}')
+                energy_step = round(self.last_spectrum.xaxis["Delta"], 5)
+                energy_start = round(self.last_spectrum.xaxis["Minimum"], 5)
+                energy_scale = [
+                    f'{energy_start + energy_step * n:.5f}' for n in range(energy_size)]
                 f.write(
-                    f'Dimension 1 scale={column_delimiter.join(dimension_1_scale)}{row_delimiter}')
+                    f'Dimension 1 scale={column_delimiter.join(energy_scale)}{row_delimiter}')
                 f.write(f'{row_delimiter}')
 
                 f.write(f'Dimension 2 name=Y-Scale [deg]{row_delimiter}')
-                dimension_size = self.last_spectrum.yaxis["Count"]
-                f.write(f'Dimension 2 size={dimension_size}{row_delimiter}')
-                step = round(self.last_spectrum.yaxis["Delta"], 5)
-                start = round(self.last_spectrum.yaxis["Minimum"], 5)
-                dimension_scale = [
-                    f'{start + step * n:.5f}' for n in range(dimension_size)]
+                angle_size = self.last_spectrum.yaxis["Count"]
+                f.write(f'Dimension 2 size={angle_size}{row_delimiter}')
+                angle_step = round(self.last_spectrum.yaxis["Delta"], 5)
+                angle_start = round(self.last_spectrum.yaxis["Minimum"], 5)
+                angle_scale = [
+                    f'{angle_start + angle_step * n:.5f}' for n in range(angle_size)]
                 f.write(
-                    f'Dimension 2 scale={column_delimiter.join(dimension_scale)}{row_delimiter}')
+                    f'Dimension 2 scale={column_delimiter.join(angle_scale)}{row_delimiter}')
                 f.write(f'{row_delimiter}')
 
                 f.write(f'Info 1{row_delimiter}')
@@ -407,14 +407,19 @@ class SweepData:
                 f.write(f'Date={date}{row_delimiter}')
                 time = now.strftime('%H:%M:%S')
                 f.write(f'Time={time}{row_delimiter}')
-                f.write(f'{row_delimiter}')
+                print(self.last_spectrum.props)
+                f.write(
+                    f'Center Energy={energy_scale[len(energy_scale) // 2]}{row_delimiter}')
+                f.write(f'Low Energy={energy_scale[0]}{row_delimiter}')
+                f.write(f'High Energy={energy_scale[-1]}{row_delimiter}')
+                f.write(f'Energy Step={energy_step}{row_delimiter}')
+                dwellTime = self.last_spectrum.props['AcquisitionTime']
+                dwellTime = round(dwellTime) * 1000  # ms
+                f.write(f'Step Time={dwellTime}{row_delimiter}')
                 channels = self.last_spectrum.props['SpectrumChannels']
-                print(channels)
                 channel_settings = [
                     x for x in channels.values()][0]['SpectrumChannelSettings']
-                print(channel_settings)
                 channel_area = channel_settings['ChannelArea']
-                print(channel_area)
                 first_x_channel = channel_area['LowX']
                 last_x_channel = channel_area['HighX']
                 first_y_channel = channel_area['LowY']
@@ -427,7 +432,10 @@ class SweepData:
                     f'Detector First Y-Channel={first_y_channel}{row_delimiter}')
                 f.write(
                     f'Detector Last Y-Channel={last_y_channel}{row_delimiter}')
-                f.write(f'Number of Slices={dimension_size}{row_delimiter}')
+                f.write(f'Number of Slices={angle_size}{row_delimiter}')
+                f.write(f'Number of Sweeps=1{row_delimiter}')
+                f.write(f'Energy Binning=1{row_delimiter}')
+                f.write(f'Angle Binning=1{row_delimiter}')
                 f.write(f'{row_delimiter}')
 
                 f.write(f'[User Interface Information 1]{row_delimiter}')
@@ -436,7 +444,7 @@ class SweepData:
 
                 f.write(f'[Data 1]{row_delimiter}')
                 print(f'sum - {sum(sum(self.sweep_raw[point]))}')
-                for row in zip(dimension_1_scale, self.sweep_raw[point]):
+                for row in zip(energy_scale, self.sweep_raw[point]):
                     energy = row[0]
                     counts = row[1]
                     counts = [f'{count:.0f}' for count in counts]
