@@ -444,7 +444,8 @@ class SweepData:
 
                 f.write(f'[Data 1]{row_delimiter}')
                 print(f'sum - {sum(sum(self.sweep_raw[point]))}')
-                for row in zip(energy_scale, self.sweep_raw[point]):
+                sweep_t = self.sweep_raw[point].transpose()
+                for row in zip(energy_scale, sweep_t):
                     energy = row[0]
                     counts = row[1]
                     counts = [f'{count:.0f}' for count in counts]
