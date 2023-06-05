@@ -31,7 +31,6 @@ class DA30:
 
     def start_measurement(self, kinetic_energy=1.75, dwell_time=1.0, pass_energy=10):
         self._is_measuring = True
-        self.start_measurement()
         self.analyser.setup_spectrum()
         self.setup_measurement(kinetic_energy, dwell_time, pass_energy)
         self.analyser.set_user_data({'Test': 1}) # what does this mean?
