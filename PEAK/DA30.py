@@ -3,132 +3,48 @@ import peak
 
 class DA30:
 
-    def __init__(self):
-        self.manager = peak.ManagerClient(f'http://localhost:8080/api')
-        self.manager.connect()
-        self.manager_status = self.manager.get_state()
+    LENS_MODE = 'DA30L_01'
 
-        analyser = peak.WebsocketPeakClient(
-            self.manager.server_address('Analyser'))
-        analyser.connect()
-        self.analyser = peak.AnalyserMeasurementController(analyser)
+    def __init__(self):
+        self.peak = peak.PeakClient()
+        self.peak.connect()
+
+        self.analyser = self.peak.get_acquire_spectrum_client()
+        self.analyser.connect() # TODO: context management
         self._is_measuring = False
 
-    def do_measurement(self, kinetic_energy=1.75, dwell_time=1.0):
-        seq_loq_id = 'test'
-        acq_log_id = 'test'
-        self.analyser.start_measurement(seq_loq_id, acq_log_id)
-
-        configuration_name = self.analyser.configuration_name
-        spectrum_definition = {
-            'ElementSetName': configuration_name,
-            'Name': 'DA30_Test',
-            'LensModeName': 'DA30L_01',
-            'PassEnergy': 10,
-            'FixedAxes': {'X': {'Center': kinetic_energy}},
-            'AcquisitionMode': 'Image',
-            'DwellTime': dwell_time,
-            'StoreSpectrum': False,
-            'StoreAcquisitionData': False,
-        }
-
-        self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
-        self.analyser.setup_spectrum(self.spectrum_id)
-        self.analyser.acquire(self.spectrum_id)
-        spectrum = self.analyser.get_measured_spectrum(self.spectrum_id)
-        self.analyser.finish_spectrum(self.spectrum_id)
-        self.analyser.finish_measurement()
+    def do_measurement(self, kinetic_energy: float = 1.75, dwell_time: float = 1.0, pass_energy: float = 10) -> peak.PeakSpectrum:
+        self.start_measurement(kinetic_energy, dwell_time, pass_energy)
+        spectrum = self.take_measurement()
+        self.stop_measurement()
         return spectrum
 
+    def setup_measurement(self, kinetic_energy: float, dwell_time: float, pass_energy:float):
+        self.analyser.set_pass_energy(pass_energy=pass_energy)
+        self.analyser.set_lens_mode(DA30.LENS_MODE)
+        self.analyser.set_acquisition_mode(peak.PeakAcquisitionMode.IMAGE)
+        self.analyser.set_dwell_time(dwell_time=dwell_time)
+        self.analyser.set_store_spectrum(False)
+        self.analyser.set_store_acquisition_data(False)
+        self.analyser.set_x_axis_mode(peak.PeakAxisMode.FIXED)
+        self.analyser.set_x_axis_center(kinetic_energy)
+
     def start_measurement(self, kinetic_energy=1.75, dwell_time=1.0, pass_energy=10):
-        seq_loq_id = 'test'
-        acq_log_id = 'test'
-        self.analyser.start_measurement(seq_loq_id, acq_log_id)
-
-        configuration_name = self.analyser.configuration_name
-        spectrum_definition = {
-            'ElementSetName': configuration_name,
-            'Name': 'DA30_Test',
-            'LensModeName': 'DA30L_01',
-            'PassEnergy': pass_energy,
-            'FixedAxes': {'X': {'Center': kinetic_energy}},
-            'AcquisitionMode': 'Image',
-            'DwellTime': dwell_time,
-            'StoreSpectrum': False,
-            'StoreAcquisitionData': False,
-        }
-
-        self.spectrum_id = self.analyser.define_spectrum(spectrum_definition)
-        self.analyser.setup_spectrum(self.spectrum_id)
         self._is_measuring = True
+        self.start_measurement()
+        self.analyser.setup_spectrum()
+        self.setup_measurement(kinetic_energy, dwell_time, pass_energy)
+        self.analyser.set_user_data({'Test': 1}) # what does this mean?
 
     def take_measurement(self):
-        self.analyser.acquire(self.spectrum_id)
-        spectrum = self.analyser.get_measured_spectrum(self.spectrum_id)
-        self.analyser.clear_spectrum(self.spectrum_id)
+        self.analyser.clear_spectrum()
+        self.analyser.acquire_spectrum()
+        spectrum = self.analyser.get_spectrum()
         return spectrum
 
     def stop_measurement(self):
         try:
-            self.analyser.finish_spectrum(self.spectrum_id)
+            self.analyser.finish_spectrum()
             self.analyser.finish_measurement()
         except Exception as e:
             print(e)
-
-
-test = 'data'
-
-if __name__ == '__main__':
-    if test == 'analyser':
-        host = peak.host_address()
-        print(host)
-        manager = peak.ManagerClient(f'http://{host}:8080/api')
-        manager.connect()
-        state = manager.get_state()
-        print(state)
-
-        analyser_addr = manager.server_address('Analyser')
-        manager.close()
-
-        analyser_ws = peak.WebsocketPeakClient(analyser_addr)
-        analyser_ws.connect()
-
-        analyser = peak.AnalyserMeasurementController(analyser_ws)
-
-        seq_loq_id = 'test'
-        acq_log_id = 'test'
-        analyser.start_measurement(seq_loq_id, acq_log_id)
-
-        configuration_name = analyser.configuration_name
-        spectrum_definition = {
-            'ElementSetName': configuration_name,
-            'Name': 'DA30_Test',
-            'LensModeName': 'DA30_01',
-            'PassEnergy': 10,
-            'FixedAxes': {'X': {'Center': 50.0}, 'Z': {'Center': 5.0}},
-            'AcquisitionMode': 'Image',
-            'DwellTime': 1.0,
-            'StoreSpectrum': False,
-            'StoreAcquisitionData': False,
-        }
-
-        spectrum_id = analyser.define_spectrum(spectrum_definition)
-        analyser.setup_spectrum(spectrum_id)
-        analyser.acquire(spectrum_id)
-
-        spectrum = analyser.get_measured_spectrum(spectrum_id)
-
-        # shutting down
-        analyser.finish_spectrum(spectrum_id)
-        analyser.finish_measurement()
-        analyser_ws.close()
-    elif test == 'data':
-        print('testing data')
-        base_dir = 'D:\git\TAU_ARPES\Spectrum_1'
-        spectrum_id = '38eb55cb-c861-45ae-8103-20531210ae95'
-        spectrum = peak.PeakSpectrum()
-        spectrum.create_from_file(base_dir=base_dir, spectrum_id=spectrum_id)
-        spectrum.show(data_type=peak.PeakSpectrumType.Count)
-        data = spectrum.count_data
-        time_data = spectrum.time_data
-        print(data.shape)
