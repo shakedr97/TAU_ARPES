@@ -8,7 +8,7 @@ import enum
 import PEAK.DA30 as DA30
 from PyQt5.QtCore import QSize, QRunnable, QThreadPool, pyqtSlot
 from PyQt5.QtCore import Qt as Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QSlider, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMainWindow, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QSlider, QComboBox, QMessageBox
 from PyQt5.QtGui import QPixmap
 import matplotlib as plt
 import json
@@ -144,6 +144,7 @@ class AnalyserWorker(QRunnable):
                 KE = float(self.controls.KE_input.text())
                 DT = float(self.controls.DT_input.text())
                 PE = int(self.controls.PE_input.text())
+
                 self.controls.analyser.start_measurement(KE, DT, PE)
             else:
                 print(
@@ -176,6 +177,7 @@ class AnalyserWorker(QRunnable):
             self.controls.sweep_data = None  # FIXME: move sweep data out of controls
             self.controls.analyser.start_measurement(KE, DT)
             count = 0
+            max_count = self.controls.max_count_value.text()
             try:
                 while not self.controls.stop:
                     count += 1
@@ -217,9 +219,18 @@ class AnalyserWorker(QRunnable):
                                                              counts,
                                                              marker='o')
                         self.controls.sweep_canvas.draw()
+
                     if count % int(self.controls.save_interval_input.text()) == 0:
                         self.gui.do_export_spectrum(export_dir)
                     points.reverse()
+
+                    """ added count check
+                    
+                    if count >= max_count:
+                        self.raise_error_to_screen(
+                            "The counter is above max_count")
+                        self.controls.analyser.stop_measurement()
+                    """
                 self.controls.analyser.stop_measurement()
             except Exception as e:
                 print(e)
@@ -246,6 +257,14 @@ class AnalyserWorker(QRunnable):
             for point in points:
                 f.write(f'{point}\t1.000\n')
         os.mkdir(os.path.join(export_dir, export_dir))
+
+    def raise_error_to_screen(self, err_msg):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText(err_msg)
+        msg.setInformativeText()
+        msg.setWindowTitle("Error")
+        msg.exec_()
 
 
 class SweepData:
@@ -617,6 +636,13 @@ class Controls(QWidget):
         self.current_sweep.addWidget(self.current_sweep_label)
         self.current_sweep.addWidget(self.current_sweep_value)
 
+        # max count
+        self.max_count = QHBoxLayout()
+        self.max_count_label = QLabel('max count')
+        self.max_count_value = QLineEdit('1000000')
+        self.max_count.addWidget(self.max_count_label)
+        self.max_count.addWidget(self.max_count_value)
+
         # grouping configuration
         self.configuration.addLayout(self.kinetic_energy)
         self.configuration.addLayout(self.dwell_time)
@@ -624,6 +650,7 @@ class Controls(QWidget):
         self.configuration.addLayout(self.points)
         self.configuration.addLayout(self.save_interval)
         self.configuration.addLayout(self.current_sweep)
+        self.configuration.addLayout(self.max_count)
 
         # set new stage position
         self.set_stage_pos = QHBoxLayout()
